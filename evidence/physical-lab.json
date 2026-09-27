@@ -1,6 +1,6 @@
 {
   "status": "passed",
-  "observed_at": "2026-09-20T02:58:38.720594+00:00",
+  "observed_at": "2026-09-27T07:08:53.897314+00:00",
   "image": "postgres@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae",
   "architecture": "arm64",
   "network": "none",

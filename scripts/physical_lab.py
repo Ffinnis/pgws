@@ -25,6 +25,10 @@ with tempfile.TemporaryDirectory(prefix="pgws-physical-build-") as folder:
     subprocess.run(go + ["test", "-c", "-o", str(Path(folder) / "discover.test"), "./internal/privacy/discover"], cwd=root, env=env, check=True)
     subprocess.run(go + ["test", "-c", "-o", str(Path(folder) / "policyapproval.test"), "./internal/policyapproval"], cwd=root, env=env, check=True)
     shutil.copy(root / "lab" / "management.sh", Path(folder) / "management.sh")
+    # The container runs as postgres; native Linux Docker enforces host ownership on bind mounts.
+    os.chmod(folder, 0o755)
+    for artifact in Path(folder).iterdir():
+        os.chmod(artifact, 0o755)
     name = "pgws-physical-lab-" + uuid.uuid4().hex[:12]
     management_name = name + "-management"
     try:
