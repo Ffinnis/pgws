@@ -1,0 +1,143 @@
+{
+  "status": "passed",
+  "observed_at": "2026-09-20T05:50:46.819296+00:00",
+  "test_pattern": "^TestLiveDaemonsOneGiB$",
+  "output": "zfs-2.2.2-0ubuntu9.5\nzfs-kmod-2.2.2-0ubuntu9.4\n6.8.0-134-generic\n=== RUN   TestLiveDaemonsOneGiB\n    live_daemons_test.go:69: ONE_GIB generated rows=131072 database_bytes=279615167\n    live_daemons_test.go:69: ONE_GIB generated rows=262144 database_bytes=551007935\n    live_daemons_test.go:69: ONE_GIB generated rows=393216 database_bytes=822384319\n    live_daemons_test.go:69: ONE_GIB source={\"rows\":516096,\"database_bytes\":1076975295,\"payload_bytes\":980582400,\"load_seconds\":11.790846005}\n    live_daemons_test.go:300: ONE_GIB initial_seed_seconds=113.475\n    live_daemons_test.go:301: ONE_GIB clone=0 create_seconds=2.164 full_scan_seconds=2.846\n    live_daemons_test.go:301: ONE_GIB clone=1 create_seconds=3.642 full_scan_seconds=2.657\n    live_daemons_test.go:301: ONE_GIB clone=2 create_seconds=5.308 full_scan_seconds=3.224\n    live_daemons_test.go:301: ONE_GIB benchmark={\"after_delete\":{\"host\":\"daemon-host\",\"observed_at\":\"2026-09-20T05:49:40.945429361Z\",\"root_available_bytes\":2824285696,\"reserved_memory_bytes\":1073741824,\"projects\":[{\"tenant\":\"ab3324fe-e221-48ee-bafa-6e4e95b74092\",\"project\":\"62a03fc6-dcde-41c6-96aa-d506660488e3\",\"reserved_memory_bytes\":1073741824,\"project_dataset\":{\"name\":\"pgws_lab_pgwszfsWvJ4izhP/pgws/t_ab3324fe-e221-48ee-bafa-6e4e95b74092/p_62a03fc6-dcde-41c6-96aa-d506660488e3\",\"guid\":\"430904853884805355\"},\"quota_bytes\":4294967296,\"used_bytes\":1067550720,\"available_bytes\":2824285696,\"referenced_bytes\":24576,\"used_by_dataset_bytes\":24576,\"used_by_children_bytes\":1067526144,\"used_by_snapshots_bytes\":0,\"used_by_refreservation_bytes\":0}]},\"after_private_writes\":{\"host\":\"daemon-host\",\"observed_at\":\"2026-09-20T05:49:28.038000605Z\",\"root_available_bytes\":2807903232,\"reserved_memory_bytes\":4294967296,\"projects\":[{\"tenant\":\"ab3324fe-e221-48ee-bafa-6e4e95b74092\",\"project\":\"62a03fc6-dcde-41c6-96aa-d506660488e3\",\"reserved_memory_bytes\":4294967296,\"project_dataset\":{\"name\":\"pgws_lab_pgwszfsWvJ4izhP/pgws/t_ab3324fe-e221-48ee-bafa-6e4e95b74092/p_62a03fc6-dcde-41c6-96aa-d506660488e3\",\"guid\":\"430904853884805355\"},\"quota_bytes\":4294967296,\"used_bytes\":1083821056,\"available_bytes\":2807903232,\"referenced_bytes\":24576,\"used_by_dataset_bytes\":24576,\"used_by_children_bytes\":1083796480,\"used_by_snapshots_bytes\":0,\"used_by_refreservation_bytes\":0}]},\"before_clones\":{\"host\":\"daemon-host\",\"observed_at\":\"2026-09-20T05:49:03.928424887Z\",\"root_available_bytes\":2824795136,\"reserved_memory_bytes\":1073741824,\"projects\":[{\"tenant\":\"ab3324fe-e221-48ee-bafa-6e4e95b74092\",\"project\":\"62a03fc6-dcde-41c6-96aa-d506660488e3\",\"reserved_memory_bytes\":1073741824,\"project_dataset\":{\"name\":\"pgws_lab_pgwszfsWvJ4izhP/pgws/t_ab3324fe-e221-48ee-bafa-6e4e95b74092/p_62a03fc6-dcde-41c6-96aa-d506660488e3\",\"guid\":\"430904853884805355\"},\"quota_bytes\":4294967296,\"used_bytes\":1067154944,\"available_bytes\":2824795136,\"referenced_bytes\":24576,\"used_by_dataset_bytes\":24576,\"used_by_children_bytes\":1067130368,\"used_by_snapshots_bytes\":0,\"used_by_refreservation_bytes\":0}]},\"checks\":[\"full payload checksums\",\"TLS verify-full\",\"three simultaneous clones\",\"independent writes\",\"source unchanged\",\"pause closes session\",\"resume retains writes\",\"reset discards writes\",\"confirmed deletion\"],\"clones\":[{\"workspace\":\"3bc8017a-6ee8-4da3-9566-918293fa076c\",\"create_seconds\":2.164166821,\"full_integrity_scan_seconds\":2.8456976259999998},{\"workspace\":\"debd7f93-9faa-4158-8a7f-7ab325f70ea7\",\"create_seconds\":3.642179446,\"full_integrity_scan_seconds\":2.656672085},{\"workspace\":\"ab5a08cf-966f-4d46-b4e3-b163538aef82\",\"create_seconds\":5.307655446,\"full_integrity_scan_seconds\":3.223530668}],\"source\":{\"rows\":516096,\"database_bytes\":1076975295,\"payload_bytes\":980582400,\"load_seconds\":11.790846005},\"with_three_clones\":{\"host\":\"daemon-host\",\"observed_at\":\"2026-09-20T05:49:19.73931651Z\",\"root_available_bytes\":2821699072,\"reserved_memory_bytes\":4294967296,\"projects\":[{\"tenant\":\"ab3324fe-e221-48ee-bafa-6e4e95b74092\",\"project\":\"62a03fc6-dcde-41c6-96aa-d506660488e3\",\"reserved_memory_bytes\":4294967296,\"project_dataset\":{\"name\":\"pgws_lab_pgwszfsWvJ4izhP/pgws/t_ab3324fe-e221-48ee-bafa-6e4e95b74092/p_62a03fc6-dcde-41c6-96aa-d506660488e3\",\"guid\":\"430904853884805355\"},\"quota_bytes\":4294967296,\"used_bytes\":1070048256,\"available_bytes\":2821699072,\"referenced_bytes\":24576,\"used_by_dataset_bytes\":24576,\"used_by_children_bytes\":1070023680,\"used_by_snapshots_bytes\":0,\"used_by_refreservation_bytes\":0}]}}\n    live_daemons_test.go:340: Production host SIGKILL during create reconciled automatically in 2 worker attempts\n    live_daemons_test.go:460: Principal token revocation closed only its SQL session in 953.415709ms; another user stayed connected and revoked credentials could not reconnect\n    live_daemons_test.go:461: Connected raw-grant revocation closed actual SQL in 1.007127959s, retained storage, revoked credentials and rejected a stale host fence\n    live_daemons_test.go:561: Actual pool pressure: root available before=2823994880, floor=268435456, SQL session closed in 1.937825125s, source slot removed; restored free space did not clear the safety stop\n    live_daemons_test.go:562: Distinct unprivileged API/worker, SIGKILL host/guard recovery, CLI/Python SDK lifecycle, project hard quotas, actual pool-pressure session cutoff and owned source-slot cleanup, and deletion passed\n--- PASS: TestLiveDaemonsOneGiB (236.26s)\nPASS\n",
+  "initial_seed_seconds": 113.475,
+  "benchmark": {
+    "after_delete": {
+      "host": "daemon-host",
+      "observed_at": "2026-09-20T05:49:40.945429361Z",
+      "root_available_bytes": 2824285696,
+      "reserved_memory_bytes": 1073741824,
+      "projects": [
+        {
+          "tenant": "ab3324fe-e221-48ee-bafa-6e4e95b74092",
+          "project": "62a03fc6-dcde-41c6-96aa-d506660488e3",
+          "reserved_memory_bytes": 1073741824,
+          "project_dataset": {
+            "name": "pgws_lab_pgwszfsWvJ4izhP/pgws/t_ab3324fe-e221-48ee-bafa-6e4e95b74092/p_62a03fc6-dcde-41c6-96aa-d506660488e3",
+            "guid": "430904853884805355"
+          },
+          "quota_bytes": 4294967296,
+          "used_bytes": 1067550720,
+          "available_bytes": 2824285696,
+          "referenced_bytes": 24576,
+          "used_by_dataset_bytes": 24576,
+          "used_by_children_bytes": 1067526144,
+          "used_by_snapshots_bytes": 0,
+          "used_by_refreservation_bytes": 0
+        }
+      ]
+    },
+    "after_private_writes": {
+      "host": "daemon-host",
+      "observed_at": "2026-09-20T05:49:28.038000605Z",
+      "root_available_bytes": 2807903232,
+      "reserved_memory_bytes": 4294967296,
+      "projects": [
+        {
+          "tenant": "ab3324fe-e221-48ee-bafa-6e4e95b74092",
+          "project": "62a03fc6-dcde-41c6-96aa-d506660488e3",
+          "reserved_memory_bytes": 4294967296,
+          "project_dataset": {
+            "name": "pgws_lab_pgwszfsWvJ4izhP/pgws/t_ab3324fe-e221-48ee-bafa-6e4e95b74092/p_62a03fc6-dcde-41c6-96aa-d506660488e3",
+            "guid": "430904853884805355"
+          },
+          "quota_bytes": 4294967296,
+          "used_bytes": 1083821056,
+          "available_bytes": 2807903232,
+          "referenced_bytes": 24576,
+          "used_by_dataset_bytes": 24576,
+          "used_by_children_bytes": 1083796480,
+          "used_by_snapshots_bytes": 0,
+          "used_by_refreservation_bytes": 0
+        }
+      ]
+    },
+    "before_clones": {
+      "host": "daemon-host",
+      "observed_at": "2026-09-20T05:49:03.928424887Z",
+      "root_available_bytes": 2824795136,
+      "reserved_memory_bytes": 1073741824,
+      "projects": [
+        {
+          "tenant": "ab3324fe-e221-48ee-bafa-6e4e95b74092",
+          "project": "62a03fc6-dcde-41c6-96aa-d506660488e3",
+          "reserved_memory_bytes": 1073741824,
+          "project_dataset": {
+            "name": "pgws_lab_pgwszfsWvJ4izhP/pgws/t_ab3324fe-e221-48ee-bafa-6e4e95b74092/p_62a03fc6-dcde-41c6-96aa-d506660488e3",
+            "guid": "430904853884805355"
+          },
+          "quota_bytes": 4294967296,
+          "used_bytes": 1067154944,
+          "available_bytes": 2824795136,
+          "referenced_bytes": 24576,
+          "used_by_dataset_bytes": 24576,
+          "used_by_children_bytes": 1067130368,
+          "used_by_snapshots_bytes": 0,
+          "used_by_refreservation_bytes": 0
+        }
+      ]
+    },
+    "checks": [
+      "full payload checksums",
+      "TLS verify-full",
+      "three simultaneous clones",
+      "independent writes",
+      "source unchanged",
+      "pause closes session",
+      "resume retains writes",
+      "reset discards writes",
+      "confirmed deletion"
+    ],
+    "clones": [
+      {
+        "workspace": "3bc8017a-6ee8-4da3-9566-918293fa076c",
+        "create_seconds": 2.164166821,
+        "full_integrity_scan_seconds": 2.8456976259999998
+      },
+      {
+        "workspace": "debd7f93-9faa-4158-8a7f-7ab325f70ea7",
+        "create_seconds": 3.642179446,
+        "full_integrity_scan_seconds": 2.656672085
+      },
+      {
+        "workspace": "ab5a08cf-966f-4d46-b4e3-b163538aef82",
+        "create_seconds": 5.307655446,
+        "full_integrity_scan_seconds": 3.223530668
+      }
+    ],
+    "source": {
+      "rows": 516096,
+      "database_bytes": 1076975295,
+      "payload_bytes": 980582400,
+      "load_seconds": 11.790846005
+    },
+    "with_three_clones": {
+      "host": "daemon-host",
+      "observed_at": "2026-09-20T05:49:19.73931651Z",
+      "root_available_bytes": 2821699072,
+      "reserved_memory_bytes": 4294967296,
+      "projects": [
+        {
+          "tenant": "ab3324fe-e221-48ee-bafa-6e4e95b74092",
+          "project": "62a03fc6-dcde-41c6-96aa-d506660488e3",
+          "reserved_memory_bytes": 4294967296,
+          "project_dataset": {
+            "name": "pgws_lab_pgwszfsWvJ4izhP/pgws/t_ab3324fe-e221-48ee-bafa-6e4e95b74092/p_62a03fc6-dcde-41c6-96aa-d506660488e3",
+            "guid": "430904853884805355"
+          },
+          "quota_bytes": 4294967296,
+          "used_bytes": 1070048256,
+          "available_bytes": 2821699072,
+          "referenced_bytes": 24576,
+          "used_by_dataset_bytes": 24576,
+          "used_by_children_bytes": 1070023680,
+          "used_by_snapshots_bytes": 0,
+          "used_by_refreservation_bytes": 0
+        }
+      ]
+    }
+  }
+}

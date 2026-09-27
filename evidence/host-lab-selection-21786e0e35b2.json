@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "observed_at": "2026-09-19T21:54:21.355744+00:00",
+  "test_pattern": "^TestLiveSourceReseedRecovery$",
+  "output": "zfs-2.2.2-0ubuntu9.5\nzfs-kmod-2.2.2-0ubuntu9.4\n6.8.0-134-generic\n=== RUN   TestLiveSourceReseedRecovery\n=== RUN   TestLiveSourceReseedRecovery/previous_runtime\n=== RUN   TestLiveSourceReseedRecovery/previous_slot\n=== RUN   TestLiveSourceReseedRecovery/previous_retired\n=== RUN   TestLiveSourceReseedRecovery/backup\n=== RUN   TestLiveSourceReseedRecovery/capture\n=== RUN   TestLiveSourceReseedRecovery/streaming\n--- PASS: TestLiveSourceReseedRecovery (203.70s)\n    --- PASS: TestLiveSourceReseedRecovery/previous_runtime (37.13s)\n    --- PASS: TestLiveSourceReseedRecovery/previous_slot (40.88s)\n    --- PASS: TestLiveSourceReseedRecovery/previous_retired (23.54s)\n    --- PASS: TestLiveSourceReseedRecovery/backup (40.61s)\n    --- PASS: TestLiveSourceReseedRecovery/capture (19.63s)\n    --- PASS: TestLiveSourceReseedRecovery/streaming (40.86s)\nPASS\n"
+}

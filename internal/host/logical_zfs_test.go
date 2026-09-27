@@ -1,0 +1,371 @@
+package host
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"pgws/internal/control"
+	"pgws/internal/lease"
+	"pgws/internal/logical"
+	"pgws/internal/privacy"
+	"pgws/internal/runtime"
+	"pgws/internal/storage/zfs"
+)
+
+// The source and writer have separate data directories and external control
+// mounts. Clones never receive the source socket or a transformation key file.
+func logicalLabRuntime(t *testing.T, ctx context.Context, root, data, id string, initialize bool, upstream ...string) (runtime.Container, *pgxpool.Pool) {
+	t.Helper()
+	o := runtime.OCI{Binary: "/usr/bin/docker", Image: runtime.PostgresImage}
+	s := runtime.Spec{Identity: lease.Identity{Epoch: control.ID(), Host: "logical-lab", Tenant: control.ID(), Project: control.ID(), Workspace: control.ID(), Generation: 1, Revision: 1}, DataDir: data, ControlDir: filepath.Join(root, id, "ctl"), SocketDir: filepath.Join(root, id, "s"), MemoryBytes: 512 << 20}
+	for _, dir := range []string{s.DataDir, s.ControlDir, s.SocketDir} {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chown(dir, 999, 999); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(upstream) != 0 {
+		if len(upstream) != 1 && len(upstream) != 3 {
+			t.Fatal("one upstream socket required")
+		}
+		binary, err := os.ReadFile(filepath.Join(os.Getenv("PGWS_LAB_BIN"), "pgws-logical-linux"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.Purpose, s.SourceSocket = "baseline", upstream[0]
+		if len(upstream) == 3 {
+			s.LogicalSource = upstream[1]
+			s.LogicalSourceEpoch, err = strconv.ParseInt(upstream[2], 10, 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		s.LogicalBinarySHA = fmt.Sprintf("%x", sha256.Sum256(binary))
+		if err = os.WriteFile(filepath.Join(s.ControlDir, "pgws-logical"), binary, 0555); err != nil {
+			t.Fatal(err)
+		}
+	}
+	c, err := o.Ensure(ctx, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanup, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := o.Remove(cleanup, c); err != nil {
+			t.Error(err)
+		}
+	})
+	tools := o.Tools(c)
+	if initialize {
+		if _, err = tools.Executor.Run(ctx, "initdb", nil, "-D", data, "-U", "postgres", "--auth-local=trust", "--auth-host=reject", "--no-locale", "--encoding=UTF8"); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		// The isolated clone or removed writer has no live postmaster. The copied
+		// PID belongs to the old namespace and cannot establish process ownership.
+		if err = os.Remove(filepath.Join(data, "postmaster.pid")); err != nil && !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+	}
+	config := fmt.Sprintf("data_directory='%s'\nlisten_addresses=''\nunix_socket_directories='%s'\nshared_buffers='32MB'\nmax_connections=20\nwal_level=logical\nmax_replication_slots=10\nmax_wal_senders=10\nmax_slot_wal_keep_size='128MB'\nmax_prepared_transactions=0\n", data, s.SocketDir)
+	configPath := filepath.Join(s.ControlDir, "postgresql.conf")
+	if err = os.WriteFile(configPath, []byte(config), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = tools.Executor.Run(ctx, "pg_ctl", nil, "-D", data, "-l", filepath.Join(s.ControlDir, "postgres.log"), "-o", "-c config_file="+configPath, "-w", "start"); err != nil {
+		t.Fatal(err)
+	}
+	pool, err := pgxpool.New(ctx, "host="+s.SocketDir+" user=postgres dbname=postgres sslmode=disable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	return c, pool
+}
+
+func TestLiveLogicalWriterZFS(t *testing.T) {
+	if os.Getenv("PGWS_ZFS_ROOT") == "" {
+		t.Skip("run scripts/host_lab.py")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	root, err := os.MkdirTemp("/tmp", "pgws-logical-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(root) })
+	j, err := lease.OpenJournal(filepath.Join(root, "journal"), "logical-lab")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.Close()
+	b, err := zfs.New("/usr/sbin/zfs", os.Getenv("PGWS_ZFS_ROOT"), os.Getenv("PGWS_ZFS_MOUNTS"), j)
+	if err != nil {
+		t.Fatal(err)
+	}
+	command := lease.Command{Identity: lease.Identity{Epoch: "logical-lab", Host: "logical-lab", Tenant: control.ID(), Project: control.ID(), Workspace: control.ID(), Generation: 1, Revision: 1}, Operation: control.ID(), Token: 1}
+	baseline, err := b.EnsureBaseline(ctx, command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	command.Token++
+	command.Operation = control.ID()
+	mount, err := b.Mount(ctx, command, baseline, 1<<30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, source := logicalLabRuntime(t, ctx, root, filepath.Join(root, "source-data"), "src", true)
+	writer, replica := logicalLabRuntime(t, ctx, root, filepath.Join(mount, "data"), "writer", true, source.Config().ConnConfig.Host)
+	if _, err = source.Exec(ctx, `CREATE TABLE people(id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,email text NOT NULL);
+ CREATE TABLE orders(id bigint PRIMARY KEY,person bigint NOT NULL REFERENCES people(id));
+ INSERT INTO people VALUES(1,'raw-initial@example.org'); INSERT INTO orders VALUES(1,1);
+ CREATE SCHEMA _pgws_barriers; REVOKE ALL ON SCHEMA _pgws_barriers FROM PUBLIC;
+ CREATE TABLE _pgws_barriers.marker(id bigint PRIMARY KEY,token uuid NOT NULL,expires_at bigint NOT NULL);
+ INSERT INTO _pgws_barriers.marker VALUES(1,'00000000-0000-0000-0000-000000000000',0);
+ CREATE ROLE marker_writer LOGIN; GRANT USAGE ON SCHEMA _pgws_barriers TO marker_writer;
+ GRANT SELECT(id),UPDATE(token,expires_at) ON _pgws_barriers.marker TO marker_writer`); err != nil {
+		t.Fatal(err)
+	}
+	discovery, err := source.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema, err := logical.ReadCatalog(ctx, discovery)
+	discovery.Rollback(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy := privacy.Policy{Version: 1, SchemaHash: privacy.SchemaHash(schema), KeyID: "zfs-lab"}
+	var markerID uint32
+	for _, table := range schema.Tables {
+		if table.Schema == "_pgws_barriers" {
+			markerID = table.ID
+		}
+		for _, col := range table.Columns {
+			r := privacy.Rule{Table: table.ID, Column: col.ID, Action: "copy_original"}
+			if col.Name == "email" {
+				r.Action, r.Domain = "keyed_email", "emails"
+			}
+			policy.Rules = append(policy.Rules, r)
+		}
+	}
+	plan, err := privacy.Compile(schema, policy, bytes.Repeat([]byte{9}, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var system string
+	var timeline int64
+	if err = source.QueryRow(ctx, "SELECT (pg_control_system()).system_identifier::text,(pg_control_checkpoint()).timeline_id").Scan(&system, &timeline); err != nil {
+		t.Fatal(err)
+	}
+	target := logical.Target{Pool: replica, Plan: plan, Identity: logical.Identity{Source: writer.Spec.Identity.Workspace, SystemID: system, Timeline: timeline, Epoch: 1}, MarkerTable: markerID}
+	connector := logical.Connector{Source: source.Config().ConnConfig, Target: target}
+	o := runtime.OCI{Binary: "/usr/bin/docker", Image: runtime.PostgresImage}
+	keyPath := filepath.Join(writer.Spec.ControlDir, "transform.key")
+	private := func(path string, data []byte) {
+		t.Helper()
+		if e := os.WriteFile(path, data, 0600); e != nil {
+			t.Fatal(e)
+		}
+		if e := os.Chown(path, 999, 999); e != nil {
+			t.Fatal(e)
+		}
+	}
+	private(keyPath, []byte(base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{9}, 32))))
+	configuration := map[string]any{"source_dsn": source.Config().ConnConfig.ConnString(), "target_dsn": replica.Config().ConnConfig.ConnString(), "identity": target.Identity, "policy": policy, "transform_key_file": keyPath, "slot_ownership_file": filepath.Join(writer.Spec.ControlDir, "slot.json"), "ddl_frozen": true, "marker_relation_oid": markerID}
+	configBytes, _ := json.Marshal(configuration)
+	private(filepath.Join(writer.Spec.ControlDir, "logical.json"), configBytes)
+	output, err := o.Ingest(ctx, writer, "seed")
+	var seedOutput struct {
+		Seed logical.SeedReceipt `json:"seed"`
+	}
+	if err != nil || json.Unmarshal(output, &seedOutput) != nil || seedOutput.Seed.LSN == "" {
+		t.Fatal("container seed failed", err)
+	}
+	seed := seedOutput.Seed
+	// Block only the second target change. The first transformed row and its
+	// watermark have already executed in the same uncommitted source transaction.
+	block, err := replica.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer block.Rollback(context.Background())
+	if _, err = block.Exec(ctx, "LOCK TABLE orders IN ACCESS EXCLUSIVE MODE"); err != nil {
+		t.Fatal(err)
+	}
+	run, stop := context.WithCancel(ctx)
+	defer stop()
+	done := make(chan error, 1)
+	go func() { _, e := o.Ingest(run, writer, "run"); done <- e }()
+	if _, err = source.Exec(ctx, `BEGIN;INSERT INTO people VALUES(50,'raw-committed@example.org');INSERT INTO orders VALUES(50,50);COMMIT`); err != nil {
+		t.Fatal(err)
+	}
+	await := func(check func() bool) {
+		t.Helper()
+		deadline := time.Now().Add(15 * time.Second)
+		for !check() {
+			if time.Now().After(deadline) || ctx.Err() != nil {
+				t.Fatal("logical ZFS fixture condition timed out")
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+	await(func() bool {
+		var waiting bool
+		return replica.QueryRow(ctx, `SELECT EXISTS(SELECT FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE 'INSERT INTO "public"."orders"%')`).Scan(&waiting) == nil && waiting
+	})
+	capture := func() zfs.Ref {
+		t.Helper()
+		command.Token++
+		command.Operation = control.ID()
+		snap, e := b.EnsureSnapshot(ctx, command, baseline, control.ID())
+		if e != nil {
+			t.Fatal(e)
+		}
+		return snap
+	}
+	before := capture()
+	if err = o.Remove(ctx, writer); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err = <-done:
+		if err == nil {
+			t.Fatal("writer loss returned success")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("writer loss did not stop connector")
+	}
+	stop()
+	block.Rollback(ctx)
+	replica.Close()
+	// Recreate the crashed enclosure with the same admitted spec and external
+	// receipts. The old PID belongs to a dead namespace, never another owner.
+	if err = os.Remove(filepath.Join(writer.Spec.DataDir, "postmaster.pid")); err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	writer, err = o.Ensure(ctx, writer.Spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = o.Remove(context.Background(), writer) })
+	tools := o.Tools(writer)
+	if _, err = tools.Executor.Run(ctx, "pg_ctl", nil, "-D", writer.Spec.DataDir, "-l", filepath.Join(writer.Spec.ControlDir, "postgres.log"), "-o", "-c config_file="+filepath.Join(writer.Spec.ControlDir, "postgresql.conf"), "-w", "start"); err != nil {
+		t.Fatal(err)
+	}
+	replica, err = pgxpool.New(ctx, configuration["target_dsn"].(string))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(replica.Close)
+	target.Pool = replica
+	connector.Target = target
+	run, stop = context.WithCancel(ctx)
+	defer stop()
+	done = make(chan error, 1)
+	go func() { _, e := o.Ingest(run, writer, "run"); done <- e }()
+	await(func() bool {
+		var count int
+		return replica.QueryRow(ctx, "SELECT count(*) FROM orders WHERE id=50").Scan(&count) == nil && count == 1
+	})
+	var committed string
+	if err = replica.QueryRow(ctx, "SELECT applied_lsn::text FROM _pgws_ingestion.checkpoint").Scan(&committed); err != nil || committed == seed.LSN {
+		t.Fatal("writer failed to recover and replay", err)
+	}
+	markerWriter := source.Config().ConnConfig.Copy()
+	markerWriter.User = "marker_writer"
+	markerWriter.Password = ""
+	marker, err := connector.Barrier(ctx, markerWriter, control.ID(), time.Now().Add(10*time.Minute).Truncate(time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	committed = marker.LSN
+	after := capture()
+	// Each captured primary starts independently with normal crash recovery.
+	// No standby signal, promotion call or source connection is used by a clone.
+	for index, snapshot := range []zfs.Ref{before, after} {
+		t.Run([]string{"before_commit", "after_commit"}[index], func(t *testing.T) {
+			cloneCommand := command
+			cloneCommand.Workspace = control.ID()
+			cloneCommand.Token = 1
+			cloneCommand.Operation = control.ID()
+			clone, err := b.EnsureClone(ctx, cloneCommand, snapshot)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cloneCommand.Token++
+			cloneCommand.Operation = control.ID()
+			cloneMount, err := b.Mount(ctx, cloneCommand, clone, 1<<30)
+			if err != nil {
+				t.Fatal(err)
+			}
+			container, pool := logicalLabRuntime(t, ctx, root, filepath.Join(cloneMount, "data"), fmt.Sprintf("clone%d", index), false)
+			if container.Spec.SourceSocket != "" {
+				t.Fatal("clone retained upstream authority")
+			}
+			var people, orders int
+			var checkpoint string
+			if err = pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM people),(SELECT count(*) FROM orders),applied_lsn::text FROM _pgws_ingestion.checkpoint`).Scan(&people, &orders, &checkpoint); err != nil || people != index+1 || orders != index+1 {
+				t.Fatal("partial source transaction survived crash recovery", people, orders, err)
+			}
+			want := seed.LSN
+			if index == 1 {
+				want = committed
+			}
+			if checkpoint != want {
+				t.Fatal("recovered data and journal disagree", checkpoint, want)
+			}
+			var markers int
+			if err = pool.QueryRow(ctx, "SELECT count(*) FROM _pgws_ingestion.barriers WHERE id=$1 AND end_lsn=$2::pg_lsn", marker.ID, marker.LSN).Scan(&markers); err != nil || markers != index {
+				t.Fatal("recovered marker and source boundary disagree", err)
+			}
+			branch := target
+			branch.Pool = pool
+			if _, err = branch.PrepareClone(ctx, want); err != nil {
+				t.Fatal(err)
+			}
+			var id int64
+			if err = pool.QueryRow(ctx, `INSERT INTO people(email) VALUES('branch@example.invalid') RETURNING id`).Scan(&id); err != nil || id != []int64{2, 51}[index] {
+				t.Fatal("recovered sequence high water differs", id, err)
+			}
+			var clean bool
+			if err = pool.QueryRow(ctx, `SELECT NOT EXISTS(SELECT FROM pg_namespace WHERE nspname IN ('_pgws_ingestion','_pgws_barriers')) AND NOT EXISTS(SELECT FROM people WHERE email LIKE 'raw-%')`).Scan(&clean); err != nil || !clean {
+				t.Fatal("clone retained ingestion metadata or untransformed values", err)
+			}
+			pool.Close()
+			if err = o.Remove(ctx, container); err != nil {
+				t.Fatal(err)
+			}
+			cloneCommand.Token++
+			cloneCommand.Operation = control.ID()
+			if err = b.DestroyClone(ctx, cloneCommand, clone); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	var count int
+	if err = source.QueryRow(ctx, "SELECT count(*) FROM people").Scan(&count); err != nil || count != 2 {
+		t.Fatal("branch modified source", err)
+	}
+	var actual string
+	if err = replica.QueryRow(ctx, "SELECT string_agg(email,',') FROM people").Scan(&actual); err != nil || strings.Contains(actual, "branch@example.invalid") {
+		t.Fatal("branch modified writer", err)
+	}
+	stop()
+	<-done
+	t.Log("Containerized ingestion: live ZFS captures before and after target commit recovered complete source transactions and matching journal/high water and durable marker boundaries; OCI writer loss replayed the unacknowledged transaction; isolated primary clones detached ingestion and allocated independent IDs")
+}

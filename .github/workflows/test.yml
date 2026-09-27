@@ -1,0 +1,57 @@
+name: Go and PostgreSQL contracts
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae
+        env:
+          POSTGRES_USER: pgws_test
+          POSTGRES_PASSWORD: local_ci_only
+          POSTGRES_DB: pgws_test
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pgws_test -d pgws_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test -race -count=1 ./...
+      - name: Management and transaction contracts with race detection
+        run: go test -race -count=1 ./internal/control ./internal/host ./internal/logical
+        env:
+          PGWS_TEST_DATABASE_URL: postgres://pgws_test:local_ci_only@localhost:5432/pgws_test?sslmode=disable
+      - run: go vet ./...
+      - run: go build ./cmd/...
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Private Unix PostgreSQL 18 connector fixtures
+        run: python scripts/physical_lab.py
+      - run: python -m unittest discover -s sdk/python
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm test --prefix sdk/typescript
+      - run: pip install -r contracts/requirements.txt
+      - run: python contracts/validate_contracts.py && python contracts/classifier/validate.py
+
+  classifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --require-hashes -r ml/column-classifier/requirements.txt
+      - run: python ml/column-classifier/smoke.py

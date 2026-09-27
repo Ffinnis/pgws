@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "observed_at": "2026-09-19T21:59:50.838263+00:00",
+  "test_pattern": "^TestLiveTCPSource$",
+  "output": "zfs-2.2.2-0ubuntu9.5\nzfs-kmod-2.2.2-0ubuntu9.4\n6.8.0-134-generic\n=== RUN   TestLiveTCPSource\n    source_tls_test.go:435: Real PG18 SCRAM through pinned verify-full TLS: basebackup, streaming, password rotation and idle daemon recovery, latest after broker SIGKILL, reseed with a separate broker generation, preserved old workspace, new generation capture and source revocation passed\n--- PASS: TestLiveTCPSource (47.01s)\nPASS\n"
+}

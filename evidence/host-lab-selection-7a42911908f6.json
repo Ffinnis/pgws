@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "observed_at": "2026-09-20T05:54:31.078925+00:00",
+  "test_pattern": "^TestLiveSourceRecovery$/^(runtime|backup|seed)$",
+  "output": "zfs-2.2.2-0ubuntu9.5\nzfs-kmod-2.2.2-0ubuntu9.4\n6.8.0-134-generic\n=== RUN   TestLiveSourceRecovery\n=== RUN   TestLiveSourceRecovery/runtime\n=== RUN   TestLiveSourceRecovery/backup\n=== RUN   TestLiveSourceRecovery/seed\n--- PASS: TestLiveSourceRecovery (58.97s)\n    --- PASS: TestLiveSourceRecovery/runtime (16.10s)\n    --- PASS: TestLiveSourceRecovery/backup (21.56s)\n    --- PASS: TestLiveSourceRecovery/seed (20.41s)\nPASS\n"
+}

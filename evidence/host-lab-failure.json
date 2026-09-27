@@ -1,0 +1,7 @@
+{
+  "status": "failed",
+  "observed_at": "2026-09-20T05:46:02.331859+00:00",
+  "test_pattern": "^TestLiveDaemonsOneGiB$",
+  "exit_code": 1,
+  "output": "zfs-2.2.2-0ubuntu9.5\nzfs-kmod-2.2.2-0ubuntu9.4\n6.8.0-134-generic\n=== RUN   TestLiveDaemonsOneGiB\n    live_daemons_test.go:69: ONE_GIB generated rows=131072 database_bytes=279615167\n    live_daemons_test.go:69: ONE_GIB generated rows=262144 database_bytes=551007935\n    live_daemons_test.go:69: ONE_GIB generated rows=393216 database_bytes=822384319\n    live_daemons_test.go:69: ONE_GIB source={\"rows\":516096,\"database_bytes\":1076975295,\"payload_bytes\":980582400,\"load_seconds\":14.508246506}\n    live_daemons_test.go:300: ONE_GIB initial_seed_seconds=114.498\n    live_daemons_test.go:301: operation completion time missing\n    live_daemons_test.go:182: 2026/09/20 12:44:11 INFO control API listening address=127.0.0.1:38423 physical_configured=true\n        \n    live_daemons_test.go:182: 2026/09/20 12:46:07 ERROR worker iteration failed error=\"host operation result is unavailable\"\n        \n    live_daemons_test.go:182: \n    live_daemons_test.go:182: 2026/09/20 12:46:07 ERROR host operation failed kind=create error=\"ZFS command failed\"\n        \n--- FAIL: TestLiveDaemonsOneGiB (133.36s)\nFAIL\n"
+}

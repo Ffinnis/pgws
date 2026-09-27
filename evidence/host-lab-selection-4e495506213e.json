@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "observed_at": "2026-09-20T00:11:35.091284+00:00",
+  "test_pattern": "^TestLiveLogicalWriterZFS$",
+  "output": "zfs-2.2.2-0ubuntu9.5\nzfs-kmod-2.2.2-0ubuntu9.4\n6.8.0-134-generic\n=== RUN   TestLiveLogicalWriterZFS\n=== RUN   TestLiveLogicalWriterZFS/before_commit\n=== RUN   TestLiveLogicalWriterZFS/after_commit\n=== NAME  TestLiveLogicalWriterZFS\n    logical_zfs_test.go:312: Live ZFS captures before and after target commit recovered complete source transactions and matching journal/high water and durable marker boundaries; OCI writer loss replayed the unacknowledged transaction; isolated primary clones detached ingestion and allocated independent IDs\n--- PASS: TestLiveLogicalWriterZFS (3.94s)\n    --- PASS: TestLiveLogicalWriterZFS/before_commit (0.75s)\n    --- PASS: TestLiveLogicalWriterZFS/after_commit (0.65s)\nPASS\n"
+}

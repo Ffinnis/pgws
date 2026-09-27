@@ -1,0 +1,14 @@
+{
+  "recorded_at": "2026-09-20T02:56:27.267873+00:00",
+  "scope": "persistent development service upgrade with a newly created verification workspace",
+  "checks": [
+    "pre-upgrade SQL write",
+    "management dump and migrations",
+    "preserved generation and credential",
+    "post-upgrade SQL read/write",
+    "new credentials",
+    "capacity API",
+    "verification workspace deletion"
+  ],
+  "status": "passed"
+}

@@ -1,0 +1,317 @@
+{
+  "format": "pgws.column-classifier-spec.v1",
+  "rfc_revision": "0.3",
+  "status": "proposed_untrained",
+  "trained_artifacts_included": false,
+  "architecture": {
+    "kind": "multinomial_logistic_regression",
+    "initialization": "from_scratch",
+    "pretrained_dependencies": [],
+    "runtime": "native_go",
+    "training_runtime": "offline_python",
+    "class_count": 24,
+    "hashed_feature_count": 16384,
+    "numeric_feature_count": 32,
+    "input_dimension": 16416,
+    "weights_dtype": "float32",
+    "weights_byte_order": "little",
+    "weights_layout": "row_major_class_then_feature",
+    "weight_matrix_bytes": 1575936,
+    "bias_bytes": 96,
+    "calibration": "single_positive_temperature"
+  },
+  "labels": [
+    "person_given_name",
+    "person_family_name",
+    "person_full_name",
+    "email_address",
+    "phone_number",
+    "postal_address",
+    "postal_code",
+    "precise_location",
+    "birth_date",
+    "government_id",
+    "financial_account",
+    "payment_card",
+    "credential",
+    "network_identifier",
+    "device_identifier",
+    "person_identifier",
+    "organization_name",
+    "user_handle",
+    "url",
+    "free_text",
+    "structured_payload",
+    "business_identifier",
+    "business_value",
+    "other"
+  ],
+  "abstention_state": "abstain",
+  "feature_contract": {
+    "id": "pgws-column-profile-v1",
+    "metadata_language": "ASCII_English_common_code_identifiers",
+    "non_ascii_action": "review",
+    "normalization": "ASCII camel-case/acronym boundaries, split punctuation/underscores, lowercase; exact implementation pinned by feature-contract digest and golden fixtures",
+    "word_features": true,
+    "character_ngrams": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "namespaces": [
+      "column",
+      "table",
+      "neighbor",
+      "type",
+      "key_role",
+      "table_column_interaction"
+    ],
+    "metadata_sources_excluded": [
+      "raw_values",
+      "raw_comments",
+      "raw_defaults"
+    ],
+    "hash": {
+      "kind": "fnv1a64",
+      "offset_basis": "14695981039346656037",
+      "prime": "1099511628211",
+      "arithmetic": "unsigned_mod_2^64",
+      "encoding": "utf8",
+      "index": "hash & 16383",
+      "sign": "-1 if hash >> 63 == 1 else +1"
+    },
+    "hashed_block_normalization": "L2_after_aggregation",
+    "max_unique_emitted_features": 2048,
+    "numeric_features": [
+      {
+        "index": 16384,
+        "name": "sample_present",
+        "definition": "1 if any rows were profiled, otherwise 0."
+      },
+      {
+        "index": 16385,
+        "name": "non_null_count_log",
+        "definition": "log1p(non-null sampled values) / log1p(64), clipped to [0,1]."
+      },
+      {
+        "index": 16386,
+        "name": "null_fraction",
+        "definition": "SQL NULL count / sampled row count; 0 when no rows, with sample_present=0."
+      },
+      {
+        "index": 16387,
+        "name": "empty_fraction",
+        "definition": "Zero-length non-null values / non-null values; 0 if denominator is zero."
+      },
+      {
+        "index": 16388,
+        "name": "mean_length_log",
+        "definition": "log1p(mean returned byte length among non-null values) / log1p(256), clipped."
+      },
+      {
+        "index": 16389,
+        "name": "p95_length_log",
+        "definition": "log1p(nearest-rank p95 returned byte length) / log1p(256), clipped; 0 when empty."
+      },
+      {
+        "index": 16390,
+        "name": "max_length_log",
+        "definition": "log1p(max returned byte length) / log1p(256), clipped; 0 when empty."
+      },
+      {
+        "index": 16391,
+        "name": "sample_distinct_fraction",
+        "definition": "Number of distinct complete non-null returned values / number of complete non-null values; zero if empty. Never export the values."
+      },
+      {
+        "index": 16392,
+        "name": "ascii_fraction",
+        "definition": "Values consisting only of ASCII bytes / complete non-empty sampled values."
+      },
+      {
+        "index": 16393,
+        "name": "alphabetic_fraction",
+        "definition": "Values consisting only of ASCII letters / complete non-empty sampled values."
+      },
+      {
+        "index": 16394,
+        "name": "numeric_fraction",
+        "definition": "Values matching the pinned numeric-string parser / complete non-empty values."
+      },
+      {
+        "index": 16395,
+        "name": "whitespace_fraction",
+        "definition": "Values containing ASCII whitespace / complete non-empty values."
+      },
+      {
+        "index": 16396,
+        "name": "at_sign_fraction",
+        "definition": "Values containing @ / complete non-empty values."
+      },
+      {
+        "index": 16397,
+        "name": "email_pattern_fraction",
+        "definition": "Email-format recognizer hits / complete non-empty values; recognizer version is pinned."
+      },
+      {
+        "index": 16398,
+        "name": "phone_pattern_fraction",
+        "definition": "Phone-format recognizer hits / complete non-empty values; no claim of number ownership."
+      },
+      {
+        "index": 16399,
+        "name": "uuid_pattern_fraction",
+        "definition": "UUID parser hits / complete non-empty values."
+      },
+      {
+        "index": 16400,
+        "name": "ip_pattern_fraction",
+        "definition": "IPv4/IPv6 parser hits / complete non-empty values."
+      },
+      {
+        "index": 16401,
+        "name": "url_pattern_fraction",
+        "definition": "Absolute URL parser hits / complete non-empty values."
+      },
+      {
+        "index": 16402,
+        "name": "iso_date_pattern_fraction",
+        "definition": "Supported ISO date parser hits / complete non-empty values."
+      },
+      {
+        "index": 16403,
+        "name": "payment_card_pattern_fraction",
+        "definition": "Approved length/format/checksum recognizer hits / complete non-empty values; not a universal detector."
+      },
+      {
+        "index": 16404,
+        "name": "secret_marker_fraction",
+        "definition": "Pinned protective secret-marker recognizer hits / complete non-empty values."
+      },
+      {
+        "index": 16405,
+        "name": "high_entropy_fraction",
+        "definition": "Pinned entropy heuristic hits / complete non-empty values; entropy alone does not label secrets."
+      },
+      {
+        "index": 16406,
+        "name": "json_object_fraction",
+        "definition": "Complete JSON object parser hits / complete non-empty values; oversized JSON is excluded."
+      },
+      {
+        "index": 16407,
+        "name": "json_array_fraction",
+        "definition": "Complete JSON array parser hits / complete non-empty values; oversized JSON is excluded."
+      },
+      {
+        "index": 16408,
+        "name": "multiline_fraction",
+        "definition": "Values containing line breaks / complete non-empty values."
+      },
+      {
+        "index": 16409,
+        "name": "nullable",
+        "definition": "1 if SQL NULL is allowed; otherwise 0."
+      },
+      {
+        "index": 16410,
+        "name": "primary_key",
+        "definition": "1 if field participates in the primary key; otherwise 0."
+      },
+      {
+        "index": 16411,
+        "name": "foreign_key",
+        "definition": "1 if field participates in a declared foreign key; otherwise 0."
+      },
+      {
+        "index": 16412,
+        "name": "unique_constraint",
+        "definition": "1 if field participates in a declared unique constraint, including composite keys; otherwise 0."
+      },
+      {
+        "index": 16413,
+        "name": "text_like",
+        "definition": "1 for a supported text-like type family; otherwise 0."
+      },
+      {
+        "index": 16414,
+        "name": "numeric_like",
+        "definition": "1 for a supported numeric type family; otherwise 0."
+      },
+      {
+        "index": 16415,
+        "name": "structured_like",
+        "definition": "1 for JSON/array/container type families; otherwise 0."
+      }
+    ],
+    "numeric_rules": "All finite in [0,1]. Zero-denominator fractions are zero with missing/incomplete evidence flags. Profiling/parser implementation and thresholds are pinned in the feature-contract digest; this specification is not a deployed extractor."
+  },
+  "discovery_limits": {
+    "max_rows_per_relation": 64,
+    "max_returned_bytes_per_value": 256,
+    "max_returned_bytes_per_relation": 8388608,
+    "max_sampling_attempts": 2,
+    "statement_timeout_ms": 500,
+    "source_queries_count_as_separate_performance_cost": true
+  },
+  "safety": {
+    "model_may_authorize_raw_copy": false,
+    "auto_accept_default": false,
+    "unqualified_class_action": "review",
+    "unknown_field_action": "block_publication",
+    "invalid_model_action": "disable_automatic_discovery",
+    "classifiers_in_cdc_path": false,
+    "classifiers_in_workspace_creation_path": false,
+    "raw_values_in_shared_training_corpus": false
+  },
+  "training": {
+    "split_unit": "application_family",
+    "split_fractions": {
+      "train": 0.65,
+      "development": 0.1,
+      "calibration": 0.1,
+      "test": 0.15
+    },
+    "calibration_partition": "group-disjoint temperature-fit and threshold-selection subsets",
+    "proposed_reviewed_example_range": [
+      10000,
+      30000
+    ],
+    "proposed_application_families_min": 100,
+    "corpus_exists": false,
+    "sample_weighting": "evaluate none versus training-only capped class weights",
+    "license_proposal": "Apache-2.0 for project-owned code/weights; corpus rights independently reviewed",
+    "acquisition_scope": "100-family minimum is a review-only pilot, not auto-accept qualification",
+    "auto_accept_family_plan": {
+      "nominal_total_family_lower_bound": 200,
+      "minimum_held_out_families_per_enabled_class": 30,
+      "actual_per_class_split_manifest_required": true,
+      "sufficient_accepted_cases_required": true,
+      "independent_calibration_groups_required": true,
+      "insufficient_evidence_action": "disable_auto_accept_for_class"
+    }
+  },
+  "unmeasured_acceptance_targets": {
+    "max_model_bundle_bytes": 4194304,
+    "max_model_related_rss_increase_bytes": 33554432,
+    "max_concurrent_inferences": 8,
+    "p95_extract_plus_score_ms": 5,
+    "score_absolute_tolerance": 1e-05,
+    "auto_accept_precision_lower_bound": 0.99,
+    "confidence_level": 0.95,
+    "minimum_test_application_families_per_auto_class": 30,
+    "uncertainty_unit": "application-family cluster resampling; binomial only when independence is defensible"
+  },
+  "required_evidence": [
+    "dataset_and_rights_manifest",
+    "group_split_manifest",
+    "label_guide",
+    "feature_golden_tests",
+    "model_card",
+    "held_out_evaluation",
+    "exported_score_parity",
+    "resource_benchmarks",
+    "policy_integration_tests"
+  ]
+}

@@ -1,0 +1,1269 @@
+openapi: 3.1.0
+info:
+  title: PG Workspaces core lifecycle API
+  version: 0.3.0
+  description: Proposed contract accompanying RFC-0001. Not a deployed service. Source/policy
+    administration and pagination will be extended separately. All cross-resource
+    lookups require current tenant/project authorization. No public server URL is
+    specified.
+security:
+- bearerAuth: []
+paths:
+  /v1/projects/{project_id}/sources:
+    post:
+      operationId: createSource
+      summary: Register an administrator-approved source; no arbitrary agent DSN
+      parameters:
+      - $ref: '#/components/parameters/project_id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceAccepted'
+        '400':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSource'
+  /v1/projects/{project_id}/sources/{source_id}:
+    get:
+      operationId: getSource
+      summary: Administrator source status and current epoch, including failed reseeds
+      parameters:
+      - $ref: '#/components/parameters/project_id'
+      - $ref: '#/components/parameters/source_id'
+      responses:
+        '200':
+          description: Current source admission status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        default:
+          description: Structured failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/projects/{project_id}/sources/{source_id}/actions:
+    post:
+      operationId: reseedSource
+      summary: Administrator reseed into a new immutable baseline generation
+      parameters:
+      - $ref: '#/components/parameters/project_id'
+      - $ref: '#/components/parameters/source_id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourceAction'
+      responses:
+        '202':
+          description: New epoch and generation reserved; existing workspaces retain their lineage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceReseedAccepted'
+        default:
+          description: Structured failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/projects/{project_id}/sources/{source_id}/barriers:
+    post:
+      operationId: issueBarrier
+      summary: Issue a durable lower-bound source token after caller commit
+      parameters:
+      - $ref: '#/components/parameters/project_id'
+      - $ref: '#/components/parameters/source_id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Barrier'
+        '400':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BarrierRequest'
+  /v1/projects/{project_id}/baselines:
+    get:
+      operationId: listBaselines
+      summary: List only baselines eligible under current principal/privacy policy
+      parameters:
+      - $ref: '#/components/parameters/project_id'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaselineList'
+        '400':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/projects/{project_id}/workspaces:
+    post:
+      operationId: createWorkspace
+      summary: Create an isolated task workspace asynchronously
+      parameters:
+      - $ref: '#/components/parameters/project_id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceAccepted'
+        '400':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkspace'
+  /v1/projects/{project_id}/workspaces/{workspace_id}:
+    get:
+      operationId: getWorkspace
+      summary: Read status and safe endpoint metadata
+      parameters:
+      - $ref: '#/components/parameters/project_id'
+      - $ref: '#/components/parameters/workspace_id'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '400':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: deleteWorkspace
+      summary: Revoke access and delete an expected generation asynchronously
+      parameters:
+      - $ref: '#/components/parameters/project_id'
+      - $ref: '#/components/parameters/workspace_id'
+      - $ref: '#/components/parameters/ExpectedGeneration'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '400':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/projects/{project_id}/workspaces/{workspace_id}/actions:
+    post:
+      operationId: workspaceAction
+      summary: Pause, resume, reset, or extend absolute expiry
+      parameters:
+      - $ref: '#/components/parameters/project_id'
+      - $ref: '#/components/parameters/workspace_id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '400':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Action'
+  /v1/projects/{project_id}/workspaces/{workspace_id}/credentials:
+    post:
+      operationId: issueCredential
+      summary: Issue a generation-scoped credential after current authorization
+      parameters:
+      - $ref: '#/components/parameters/project_id'
+      - $ref: '#/components/parameters/workspace_id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Credential'
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+        '400':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialRequest'
+  /v1/projects/{project_id}/operations/{operation_id}:
+    get:
+      operationId: getOperation
+      summary: Poll a durable lifecycle operation
+      parameters:
+      - $ref: '#/components/parameters/project_id'
+      - $ref: '#/components/parameters/operation_id'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '400':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Structured failure; detail must not expose secrets or source
+            row values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Service identity token with scoped tenant/project authority; not
+        a database credential.
+  parameters:
+    project_id:
+      name: project_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    workspace_id:
+      name: workspace_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    operation_id:
+      name: operation_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    source_id:
+      name: source_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 200
+      description: Bound to authenticated tenant/project, HTTP method/path, and normalized
+        request hash. Different body under the same key returns 409.
+    ExpectedGeneration:
+      name: expected_generation
+      in: query
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  schemas:
+    Source:
+      type: object
+      additionalProperties: false
+      required: [id, connector, source_epoch, generation, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        connector:
+          type: string
+          enum: [physical, logical]
+        source_epoch:
+          type: integer
+          minimum: 1
+        generation:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [registered, validating, seeding, streaming, blocked, unreachable, disabled]
+        observed_at:
+          type: string
+          format: date-time
+    SourceAction:
+      type: object
+      additionalProperties: false
+      required: [action, expected_source_epoch]
+      properties:
+        action:
+          const: reseed
+        expected_source_epoch:
+          type: integer
+          minimum: 1
+          maximum: 999999999
+    SourceReseedAccepted:
+      type: object
+      additionalProperties: false
+      required: [source_id, source_epoch, baseline_id, generation, operation]
+      properties:
+        source_id:
+          type: string
+          format: uuid
+        source_epoch:
+          type: integer
+          minimum: 2
+        baseline_id:
+          type: string
+          format: uuid
+        generation:
+          type: integer
+          minimum: 2
+        operation:
+          $ref: '#/components/schemas/Operation'
+    Error:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        retryable:
+          type: boolean
+        operation_id:
+          type: string
+          format: uuid
+        request_id:
+          type: string
+      required:
+      - code
+      - message
+      - retryable
+    Freshness:
+      oneOf:
+      - type: object
+        additionalProperties: false
+        properties:
+          mode:
+            const: latest
+        required:
+        - mode
+      - type: object
+        additionalProperties: false
+        properties:
+          mode:
+            const: at_least
+          barrier_token:
+            type: string
+            minLength: 1
+        required:
+        - mode
+        - barrier_token
+      - type: object
+        additionalProperties: false
+        properties:
+          mode:
+            const: snapshot
+          snapshot_id:
+            type: string
+            format: uuid
+        required:
+        - mode
+        - snapshot_id
+    CreateWorkspace:
+      type: object
+      additionalProperties: false
+      properties:
+        baseline_id:
+          type: string
+          format: uuid
+        task_id:
+          type: string
+          minLength: 1
+          maxLength: 200
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        resource_profile:
+          type: string
+          enum:
+          - small
+          - medium
+        ttl_seconds:
+          type: integer
+          minimum: 300
+          maximum: 604800
+        code_revision:
+          type: string
+          maxLength: 200
+      required:
+      - baseline_id
+      - task_id
+      - freshness
+      - resource_profile
+      - ttl_seconds
+    Endpoint:
+      type: object
+      additionalProperties: false
+      properties:
+        hostname:
+          type: string
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        database:
+          type: string
+        sslmode:
+          const: verify-full
+      required:
+      - hostname
+      - port
+      - database
+      - sslmode
+    Workspace:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        generation:
+          type: integer
+          minimum: 1
+        task_id:
+          type: string
+        desired_state:
+          type: string
+          enum:
+          - running
+          - paused
+          - deleted
+        phase:
+          type: string
+        baseline_id:
+          type: string
+          format: uuid
+        snapshot_id:
+          type: string
+          format: uuid
+        privacy_mode:
+          type: string
+          enum:
+          - raw
+          - sanitized
+        policy_hash:
+          type: string
+        resource_profile:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        endpoint:
+          $ref: '#/components/schemas/Endpoint'
+        last_operation_id:
+          type: string
+          format: uuid
+      required:
+      - id
+      - project_id
+      - generation
+      - task_id
+      - desired_state
+      - phase
+      - resource_profile
+      - expires_at
+    Operation:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - succeeded
+          - failed
+          - cancelled
+        workspace_id:
+          type: string
+          format: uuid
+        phase:
+          type: string
+        attempt:
+          type: integer
+          minimum: 0
+        error:
+          $ref: '#/components/schemas/Error'
+      required:
+      - id
+      - kind
+      - status
+      - attempt
+    WorkspaceAccepted:
+      type: object
+      additionalProperties: false
+      properties:
+        workspace:
+          $ref: '#/components/schemas/Workspace'
+        operation:
+          $ref: '#/components/schemas/Operation'
+      required:
+      - workspace
+      - operation
+    Action:
+      description: >-
+        All actions require current authorization and matching generation. extend_ttl
+        compares expected_expires_at atomically with expiry and deletion, only increases
+        expiry, and cannot exceed seven days from workspace creation or a tighter project
+        cap. An expired/deleting workspace returns 409. Success requires installation
+        of the new host deadline; until the operation succeeds, assume the old deadline.
+        Reusing the idempotency key returns the original operation, not another extension.
+      oneOf:
+      - type: object
+        additionalProperties: false
+        properties:
+          action:
+            const: extend_ttl
+          expected_generation:
+            type: integer
+            minimum: 1
+          expected_expires_at:
+            type: string
+            format: date-time
+          expires_at:
+            type: string
+            format: date-time
+        required:
+        - action
+        - expected_generation
+        - expected_expires_at
+        - expires_at
+      - type: object
+        additionalProperties: false
+        properties:
+          action:
+            const: pause
+          expected_generation:
+            type: integer
+            minimum: 1
+        required:
+        - action
+        - expected_generation
+      - type: object
+        additionalProperties: false
+        properties:
+          action:
+            const: resume
+          expected_generation:
+            type: integer
+            minimum: 1
+        required:
+        - action
+        - expected_generation
+      - type: object
+        additionalProperties: false
+        properties:
+          action:
+            const: reset
+          expected_generation:
+            type: integer
+            minimum: 1
+          discard_local_changes:
+            const: true
+          baseline_id:
+            type: string
+            format: uuid
+          freshness:
+            $ref: '#/components/schemas/Freshness'
+        required:
+        - action
+        - expected_generation
+        - discard_local_changes
+        - baseline_id
+        - freshness
+    CredentialRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        expected_generation:
+          type: integer
+          minimum: 1
+        role:
+          type: string
+          enum:
+          - owner
+          - reader
+        ttl_seconds:
+          type: integer
+          minimum: 60
+          maximum: 3600
+      required:
+      - expected_generation
+      - role
+      - ttl_seconds
+    Credential:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        workspace_id:
+          type: string
+          format: uuid
+        generation:
+          type: integer
+          minimum: 1
+        username:
+          type: string
+        password:
+          type: string
+          description: Secret. Never log, cache, or include in ordinary workspace
+            GET responses.
+        endpoint:
+          $ref: '#/components/schemas/Endpoint'
+        expires_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - workspace_id
+      - generation
+      - username
+      - password
+      - endpoint
+      - expires_at
+    Baseline:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        source_id:
+          type: string
+          format: uuid
+        generation:
+          type: integer
+          minimum: 1
+        source_epoch:
+          type: integer
+          minimum: 1
+        kind:
+          type: string
+          enum:
+          - physical_standby
+          - logical_writer
+        privacy_mode:
+          type: string
+          enum:
+          - raw
+          - sanitized
+        state:
+          type: string
+        runtime_digest:
+          type: string
+        observed_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - source_id
+      - generation
+      - source_epoch
+      - kind
+      - privacy_mode
+      - state
+      - runtime_digest
+    BaselineList:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Baseline'
+        next_cursor:
+          type: string
+      required:
+      - items
+    CreateSource:
+      type: object
+      additionalProperties: false
+      properties:
+        connector:
+          type: string
+          enum:
+          - physical
+          - logical
+        approved_endpoint_reference:
+          type: string
+        secret_reference:
+          type: string
+      required:
+      - connector
+      - approved_endpoint_reference
+      - secret_reference
+    SourceAccepted:
+      type: object
+      additionalProperties: false
+      properties:
+        source_id:
+          type: string
+          format: uuid
+        operation:
+          $ref: '#/components/schemas/Operation'
+      required:
+      - source_id
+      - operation
+    BarrierRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        after_commit_asserted:
+          const: true
+      required:
+      - after_commit_asserted
+    Barrier:
+      type: object
+      additionalProperties: false
+      properties:
+        source_id:
+          type: string
+          format: uuid
+        source_epoch:
+          type: integer
+          minimum: 1
+        barrier_token:
+          type: string
+        issued_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+      required:
+      - source_id
+      - source_epoch
+      - barrier_token
+      - issued_at
+      - expires_at

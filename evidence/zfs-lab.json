@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "observed_at": "2026-09-19T19:03:33.318287+00:00",
+  "storage": "real OpenZFS file-backed disposable pool",
+  "output": "zfs-2.2.2-0ubuntu9.5\nzfs-kmod-2.2.2-0ubuntu9.4\n6.8.0-134-generic\n=== RUN   TestLiveZFS\n    live_test.go:95: {\"baseline\":{\"name\":\"pgws_lab_pgwszfsUtTco9LS/pgws/t_10000000-0000-4000-8000-000000000001/p_10000000-0000-4000-8000-000000000002/baselines/10000000-0000-4000-8000-000000000003/g1\",\"guid\":\"3605669052598702183\"},\"clone\":{\"name\":\"pgws_lab_pgwszfsUtTco9LS/pgws/t_10000000-0000-4000-8000-000000000001/p_10000000-0000-4000-8000-000000000002/workspaces/10000000-0000-4000-8000-000000000005/g1\",\"guid\":\"4995696275952131280\"},\"delete_replay\":true,\"independent_writes\":true,\"snapshot\":{\"name\":\"pgws_lab_pgwszfsUtTco9LS/pgws/t_10000000-0000-4000-8000-000000000001/p_10000000-0000-4000-8000-000000000002/baselines/10000000-0000-4000-8000-000000000003/g1@s_10000000-0000-4000-8000-000000000004\",\"guid\":\"9577569888937700038\"}}\n--- PASS: TestLiveZFS (0.51s)\n=== RUN   TestLiveProjectAllocation\n    project_live_test.go:136: {\"available_after_cleanup\":83728384,\"clone_growth_mib_before_quota\":79,\"clone_refquota\":268435456,\"other_project_write\":true,\"parent_used_after_clone\":50490368,\"parent_used_at_quota\":134279168,\"parent_used_before_clone\":50440192,\"project_quota\":134217728,\"shared_origin_bytes\":50331648}\n--- PASS: TestLiveProjectAllocation (2.72s)\nPASS\n",
+  "not_qualified": [
+    "power-loss durability",
+    "physical disk performance",
+    "1 TB workload"
+  ]
+}

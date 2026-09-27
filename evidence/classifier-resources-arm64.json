@@ -1,0 +1,45 @@
+{
+  "architecture": "arm64",
+  "baseline_rss_bytes": 5414912,
+  "bundle_bytes": 1577218,
+  "concurrent_inferences": 8,
+  "cpu": [
+    "CPU implementer\t: 0x61",
+    "CPU part\t: 0x000"
+  ],
+  "cpus_allowed": "0",
+  "feature_contract_digest": "d45309a196de286834d22f49dda7a63d0aeb7681a7bdb08ae6b2b8ca2ec1298a",
+  "final_rss_bytes": 15769600,
+  "go": "go1.25.4",
+  "gomaxprocs": 1,
+  "peak_rss_bytes": 15921152,
+  "profile_latency": [
+    {
+      "entries": 109,
+      "fixture": 0,
+      "iterations": 1000,
+      "p50_ms": 0.029625,
+      "p95_ms": 0.0555
+    },
+    {
+      "entries": 47,
+      "fixture": 1,
+      "iterations": 1000,
+      "p50_ms": 0.013292,
+      "p95_ms": 0.019584
+    },
+    {
+      "entries": 1916,
+      "fixture": 2,
+      "iterations": 1000,
+      "p50_ms": 1.831291,
+      "p95_ms": 2.178208
+    }
+  ],
+  "resident_increase_bytes": 10506240,
+  "status": "passed",
+  "weights": "project-authored arithmetic fixture; no trained-model quality claim",
+  "observed_at": "2026-09-19T23:58:50.690052+00:00",
+  "image": "postgres@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae",
+  "fixture": "isolated Linux OCI process; no source I/O or trained quality evaluation"
+}

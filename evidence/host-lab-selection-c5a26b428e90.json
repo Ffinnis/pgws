@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "observed_at": "2026-09-20T02:41:35.679845+00:00",
+  "test_pattern": "^TestLiveLogicalRuntime$/^approval_",
+  "output": "zfs-2.2.2-0ubuntu9.5\nzfs-kmod-2.2.2-0ubuntu9.4\n6.8.0-134-generic\n=== RUN   TestLiveLogicalRuntime\n=== RUN   TestLiveLogicalRuntime/approval_expiry\n    logical_runtime_test.go:291: Expired signed policy stopped exact container and refused renewal: approval_expiry\n=== RUN   TestLiveLogicalRuntime/approval_stall\n    logical_runtime_test.go:291: Expired signed policy stopped exact container and refused renewal: approval_stall\n=== RUN   TestLiveLogicalRuntime/approval_mismatch\n=== RUN   TestLiveLogicalRuntime/approval_renewal\n    logical_runtime_test.go:222: Separate operator signer and host relay delivered two approvals; policy revocation closed real CDC and retired owned slot in 1m25.928605329s\n--- PASS: TestLiveLogicalRuntime (122.48s)\n    --- PASS: TestLiveLogicalRuntime/approval_expiry (6.03s)\n    --- PASS: TestLiveLogicalRuntime/approval_stall (5.99s)\n    --- PASS: TestLiveLogicalRuntime/approval_mismatch (1.77s)\n    --- PASS: TestLiveLogicalRuntime/approval_renewal (108.69s)\nPASS\n"
+}

@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "observed_at": "2026-09-19T23:01:08.892635+00:00",
+  "test_pattern": "^TestLiveDaemons$",
+  "output": "zfs-2.2.2-0ubuntu9.5\nzfs-kmod-2.2.2-0ubuntu9.4\n6.8.0-134-generic\n=== RUN   TestLiveDaemons\n    live_daemons_test.go:310: Production host SIGKILL during create reconciled automatically in 2 worker attempts\n    live_daemons_test.go:427: Principal token revocation closed only its SQL session in 907.439542ms; another user stayed connected and revoked credentials could not reconnect\n    live_daemons_test.go:428: Connected raw-grant revocation closed actual SQL in 1.057654001s, retained storage, revoked credentials and rejected a stale host fence\n    live_daemons_test.go:523: Actual pool pressure: root available before=3886395904, floor=268435456, SQL session closed in 1.939539668s, source slot removed; restored free space did not clear the safety stop\n    live_daemons_test.go:524: Distinct unprivileged API/worker, SIGKILL host/guard recovery, CLI/Python SDK lifecycle, project hard quotas, actual pool-pressure session cutoff and owned source-slot cleanup, and deletion passed\n--- PASS: TestLiveDaemons (83.05s)\nPASS\n"
+}

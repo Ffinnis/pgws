@@ -1,0 +1,65 @@
+{
+  "record_id": "synthetic-users-firstname-v1",
+  "application_family_id": "synthetic-shop-family-a",
+  "provenance": {
+    "origin": "project_authored_synthetic",
+    "rights_reference": "Project-authored RFC fixture; not a real training corpus.",
+    "redistribution_approved": true
+  },
+  "profile": {
+    "feature_contract_id": "pgws-column-profile-v1",
+    "table_name": "users",
+    "column_name": "firstName",
+    "postgres_type": "text",
+    "neighbor_columns": [
+      "id",
+      "lastName",
+      "email"
+    ],
+    "numeric_features": {
+      "sample_present": 0,
+      "non_null_count_log": 0,
+      "null_fraction": 0,
+      "empty_fraction": 0,
+      "mean_length_log": 0,
+      "p95_length_log": 0,
+      "max_length_log": 0,
+      "sample_distinct_fraction": 0,
+      "ascii_fraction": 0,
+      "alphabetic_fraction": 0,
+      "numeric_fraction": 0,
+      "whitespace_fraction": 0,
+      "at_sign_fraction": 0,
+      "email_pattern_fraction": 0,
+      "phone_pattern_fraction": 0,
+      "uuid_pattern_fraction": 0,
+      "ip_pattern_fraction": 0,
+      "url_pattern_fraction": 0,
+      "iso_date_pattern_fraction": 0,
+      "payment_card_pattern_fraction": 0,
+      "secret_marker_fraction": 0,
+      "high_entropy_fraction": 0,
+      "json_object_fraction": 0,
+      "json_array_fraction": 0,
+      "multiline_fraction": 0,
+      "nullable": 0,
+      "primary_key": 0,
+      "foreign_key": 0,
+      "unique_constraint": 0,
+      "text_like": 1,
+      "numeric_like": 0,
+      "structured_like": 0
+    },
+    "evidence": {
+      "sampling_status": "none",
+      "review_flags": [
+        "incomplete_sample"
+      ]
+    }
+  },
+  "label": "person_given_name",
+  "review": {
+    "status": "reviewed",
+    "reviewer_count": 1
+  }
+}

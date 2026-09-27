@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "observed_at": "2026-09-19T21:36:35.737118+00:00",
+  "test_pattern": "^TestLiveOverflowZFS$",
+  "output": "zfs-2.2.2-0ubuntu9.5\nzfs-kmod-2.2.2-0ubuntu9.4\n6.8.0-134-generic\n=== RUN   TestLiveOverflowZFS\n    overflow_test.go:351: Real ZFS capture with 70 open subtransactions: source stopped before clone startup, standby SQL unavailable, promotion/current proof after restart, committed rows only, sibling-safe deletion and terminal watchdog stop on a real timeline transition passed\n    overflow_test.go:352: Changed source system identifier blocks ingestion and removes only the owned runtime; the foreign system's same-name replication slot remains intact\n--- PASS: TestLiveOverflowZFS (56.34s)\nPASS\n"
+}

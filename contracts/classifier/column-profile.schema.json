@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pgws:column-profile:v1",
+  "title": "ColumnProfile v1 - no raw row values",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "feature_contract_id",
+    "table_name",
+    "column_name",
+    "postgres_type",
+    "neighbor_columns",
+    "numeric_features",
+    "evidence"
+  ],
+  "properties": {
+    "feature_contract_id": {
+      "const": "pgws-column-profile-v1"
+    },
+    "table_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "column_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "postgres_type": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "neighbor_columns": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      }
+    },
+    "numeric_features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sample_present",
+        "non_null_count_log",
+        "null_fraction",
+        "empty_fraction",
+        "mean_length_log",
+        "p95_length_log",
+        "max_length_log",
+        "sample_distinct_fraction",
+        "ascii_fraction",
+        "alphabetic_fraction",
+        "numeric_fraction",
+        "whitespace_fraction",
+        "at_sign_fraction",
+        "email_pattern_fraction",
+        "phone_pattern_fraction",
+        "uuid_pattern_fraction",
+        "ip_pattern_fraction",
+        "url_pattern_fraction",
+        "iso_date_pattern_fraction",
+        "payment_card_pattern_fraction",
+        "secret_marker_fraction",
+        "high_entropy_fraction",
+        "json_object_fraction",
+        "json_array_fraction",
+        "multiline_fraction",
+        "nullable",
+        "primary_key",
+        "foreign_key",
+        "unique_constraint",
+        "text_like",
+        "numeric_like",
+        "structured_like"
+      ],
+      "properties": {
+        "sample_present": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "non_null_count_log": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "null_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "empty_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "mean_length_log": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "p95_length_log": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max_length_log": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "sample_distinct_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "ascii_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "alphabetic_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "numeric_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "whitespace_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "at_sign_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "email_pattern_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "phone_pattern_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "uuid_pattern_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "ip_pattern_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "url_pattern_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "iso_date_pattern_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "payment_card_pattern_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "secret_marker_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "high_entropy_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "json_object_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "json_array_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "multiline_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "nullable": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "primary_key": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "foreign_key": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "unique_constraint": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "text_like": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "numeric_like": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "structured_like": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sampling_status",
+        "review_flags"
+      ],
+      "properties": {
+        "sampling_status": {
+          "enum": [
+            "none",
+            "partial",
+            "bounded_complete"
+          ]
+        },
+        "review_flags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "non_ascii_identifier",
+              "truncated_value",
+              "incomplete_sample",
+              "feature_overflow",
+              "unsupported_type",
+              "mixed_content",
+              "rule_conflict",
+              "unknown_json_path"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

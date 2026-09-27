@@ -1,0 +1,42 @@
+{
+  "status": "passed",
+  "observed_at": "2026-09-20T02:58:38.720594+00:00",
+  "image": "postgres@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae",
+  "architecture": "arm64",
+  "network": "none",
+  "runtime_uid": "postgres",
+  "management_integration": "passed",
+  "scope": "PostgreSQL 18: management transactions, source discovery, verified seed, disconnected promotion, independent writes, promotion with 70 open subtransactions, missing WAL rejection, changed plan rejection, unlogged and event-trigger source rejection, pre-hardening catalog drift rejection in postgres/template1, private preload/login-trigger suppression, hardening replay after SQL commit, promoted-primary restart proof; ordinary-file storage",
+  "policy_approval": "Linux boot-clock receipt durability, replay and renewal ordering; management signing/revocation and source binding",
+  "capacity_measurements": "immutable batches, lost-ACK replay, concurrent deduplication, scoped HTTP history and exact decimal amounts",
+  "bounded_discovery": "restricted reader, aggregate-only output, oversized/opaque exclusions, empty samples, schema fingerprint and deadline connection cleanup",
+  "logical_ingestion": {
+    "status": "passed",
+    "source": "PostgreSQL 18 pgoutput v1",
+    "cases": [
+      "policy-bound atomic target apply",
+      "parallel immutable baseline generations at one source epoch, different transforms and sibling-safe slot retirement",
+      "exported snapshot with concurrent source writes",
+      "continuous INSERT/UPDATE/DELETE",
+      "unchanged TOAST",
+      "socket failure after target commit before ACK and exact replay",
+      "uniqueness failure without ACK",
+      "idle schema drift stop",
+      "unsupported source catalog rejection",
+      "private administrator discover/seed/run CLI",
+      "positive identity/serial sequence high-water atomicity, seed/CDC, deletion, drift, exhaustion and branch insertion",
+      "clone primary and unique key validation",
+      "committed idle-source marker barriers, stopped consumer, replay, atomicity, bounded writer role, receipt quota/expiry and private CLI",
+      "durable ownership before seed rows; real SIGKILL after creation and after committed apply before ACK; progress persistence failure and replay; independent source-only status with real retained WAL pressure and slot/publication replacement",
+      "real SIGKILL before ownership receipt: inspection, reseed and stream refuse the unrecorded generation; source slot position/publication OID unchanged and target empty"
+    ],
+    "public_sanitized_service_qualified": false
+  },
+  "not_qualified": [
+    "ZFS snapshots in this fixture",
+    "workspace endpoint isolation",
+    "sanitized baseline publication",
+    "complete logical crash and source WAL watchdog campaign",
+    "full T-23 on ZFS capture"
+  ]
+}

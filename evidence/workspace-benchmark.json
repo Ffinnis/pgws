@@ -1,0 +1,96 @@
+{
+  "status": "passed",
+  "run_id": "0d030c90-accc-406d-86b8-869c90284222",
+  "started_at": "2026-09-20T03:01:51.818018+00:00",
+  "finished_at": "2026-09-20T03:02:13.254639+00:00",
+  "driver_platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+  "baseline_id": "388ebd7e-e892-46bb-bfaf-792ece19f8e1",
+  "concurrent_workspaces": 3,
+  "rounds": 2,
+  "percentile_method": "nearest rank; small samples are not performance qualification",
+  "results": [
+    {
+      "round": 1,
+      "ordinal": 1,
+      "workspace": "4eaf41d6-738b-46e8-b44c-4b2f4ec4304a",
+      "generation": 1,
+      "create_seconds": 4.396464040968567,
+      "credential_seconds": 1.4012904589762911,
+      "first_sql_seconds": 0.0419663330540061,
+      "database_bytes": 7919295,
+      "server_version_num": 180006
+    },
+    {
+      "round": 1,
+      "ordinal": 2,
+      "workspace": "8e07c498-618b-4d10-9e0c-d12e41eb432e",
+      "generation": 1,
+      "create_seconds": 5.713145375018939,
+      "credential_seconds": 1.3468817080138251,
+      "first_sql_seconds": 0.03816495800856501,
+      "database_bytes": 7919295,
+      "server_version_num": 180006
+    },
+    {
+      "round": 1,
+      "ordinal": 3,
+      "workspace": "3512cd79-6f5c-4ea4-a0fd-8a5e7978ccd8",
+      "generation": 1,
+      "create_seconds": 2.6059062919812277,
+      "credential_seconds": 3.42977362498641,
+      "first_sql_seconds": 0.034285583067685366,
+      "database_bytes": 7919295,
+      "server_version_num": 180006
+    },
+    {
+      "round": 2,
+      "ordinal": 1,
+      "workspace": "ae2fc341-2229-4b5e-a1b6-8571cfeb218c",
+      "generation": 1,
+      "create_seconds": 2.336174583993852,
+      "credential_seconds": 3.8862985000014305,
+      "first_sql_seconds": 0.03960295801516622,
+      "database_bytes": 7919295,
+      "server_version_num": 180006
+    },
+    {
+      "round": 2,
+      "ordinal": 2,
+      "workspace": "45eb565e-7e03-4180-b7ba-8a37a958cfe7",
+      "generation": 1,
+      "create_seconds": 4.137336957966909,
+      "credential_seconds": 2.37830025004223,
+      "first_sql_seconds": 0.035357333021238446,
+      "database_bytes": 7919295,
+      "server_version_num": 180006
+    },
+    {
+      "round": 2,
+      "ordinal": 3,
+      "workspace": "6e571628-15c8-419c-b9f1-5ad2084e74a3",
+      "generation": 1,
+      "create_seconds": 6.212370624998584,
+      "credential_seconds": 1.3311959579586983,
+      "first_sql_seconds": 0.036078750039450824,
+      "database_bytes": 7919295,
+      "server_version_num": 180006
+    }
+  ],
+  "cleanup_unconfirmed": [],
+  "admission_unconfirmed_keys": [],
+  "error": null,
+  "full_rfc_benchmark_qualified": false,
+  "not_measured": [
+    "source load",
+    "cell resident memory",
+    "recovery under power loss",
+    "1 TB / fourteen-workspace qualification"
+  ],
+  "create_latency": {
+    "count": 6,
+    "min_seconds": 2.336174583993852,
+    "max_seconds": 6.212370624998584,
+    "p50_seconds": 4.137336957966909,
+    "p95_seconds": 6.212370624998584
+  }
+}

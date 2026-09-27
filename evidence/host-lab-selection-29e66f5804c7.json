@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "observed_at": "2026-09-20T00:50:45.295073+00:00",
+  "test_pattern": "^TestLiveLogicalRuntime$",
+  "output": "zfs-2.2.2-0ubuntu9.5\nzfs-kmod-2.2.2-0ubuntu9.4\n6.8.0-134-generic\n=== RUN   TestLiveLogicalRuntime\n=== RUN   TestLiveLogicalRuntime/cancel\n    logical_runtime_test.go:208: Pinned container ingestion and terminal stop passed: cancel\n=== RUN   TestLiveLogicalRuntime/wal_budget\n    logical_runtime_test.go:208: Pinned container ingestion and terminal stop passed: wal_budget\n=== RUN   TestLiveLogicalRuntime/uncertain_retirement\n    logical_runtime_test.go:208: Pinned container ingestion and terminal stop passed: uncertain_retirement\n=== RUN   TestLiveLogicalRuntime/replacement_slot\n    logical_runtime_test.go:208: Pinned container ingestion and terminal stop passed: replacement_slot\n--- PASS: TestLiveLogicalRuntime (9.92s)\n    --- PASS: TestLiveLogicalRuntime/cancel (1.99s)\n    --- PASS: TestLiveLogicalRuntime/wal_budget (4.05s)\n    --- PASS: TestLiveLogicalRuntime/uncertain_retirement (1.94s)\n    --- PASS: TestLiveLogicalRuntime/replacement_slot (1.95s)\nPASS\n"
+}
