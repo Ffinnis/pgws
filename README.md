@@ -1,16 +1,20 @@
 # PGWS
 
-Начальная реализация [RFC-0001 revision 0.3](docs/RFC-0001.md). Go 1.25, PostgreSQL и HTTP/JSON API. Проект находится в отдельной папке и содержит копию RFC и контрактов.
+PostgreSQL workspaces for AI agents. PGWS keeps a PostgreSQL baseline up to date through replication and gives each agent its own independent, writable copy-on-write workspace.
 
-Работает физический сценарий PostgreSQL 18: регистрация источника, потоковый baseline, создание ZFS-клона через API, `latest`, подписанный barrier и `at_least`, TLS-подключение с отдельными credentials, pause/resume, reset, продление TTL и удаление. Исходные логины отключаются. Пароли для повторного ответа хранятся в management database только в зашифрованном виде.
+This is the initial implementation of [RFC-0001 revision 0.3](docs/RFC-0001.md), written in Go 1.25 with PostgreSQL and an HTTP/JSON API. The repository includes a copy of the RFC and its contracts.
 
-В Linux VM проверены настоящие PostgreSQL 18.6, OpenZFS и Docker. Сквозной тест запускает API, worker, host, ingress guard и CLI отдельными процессами. Независимый guard закрывает существующие SQL-соединения при истечении serving lease, workspace или credentials. Отдельный watchdog контролирует WAL и останавливает просроченные runtime.
+## Status
 
-Проект получает общий ZFS-лимит для baseline, снимков и клонов. Watchdog также закрывает доступ при нехватке места в пуле. Счётчики и точный смысл лимитов описаны в [STORAGE-ACCOUNTING.md](docs/STORAGE-ACCOUNTING.md).
+The physical PostgreSQL 18 flow works end to end: source registration, a streaming baseline, ZFS clone creation through the API, `latest`, signed barriers and `at_least`, TLS connections with per-workspace credentials, pause/resume, reset, TTL extension and deletion. Imported source logins are disabled. Passwords kept for response replay are stored encrypted in the management database.
 
-Это рабочая физическая реализация для отдельного локального стенда. Поддержаны одобренные Unix-источники и TCP-источники через TLS-посредник с закреплёнными IP, один application database и консервативный список PostgreSQL-функций. Настройка TCP описана в [SOURCE-TLS.md](docs/SOURCE-TLS.md). Sanitized ingestion, обучение классификатора и все production acceptance gates RFC ещё не завершены. Точное состояние и ограничения находятся в [IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
+Real PostgreSQL 18.6, OpenZFS and Docker have been tested in a Linux VM. The end-to-end test runs the API, worker, host, ingress guard and CLI as separate processes. An independent guard closes existing SQL connections when a serving lease, workspace or credential expires. A separate watchdog monitors source WAL and stops expired runtimes.
 
-## Постоянный локальный стенд
+Each project gets a shared ZFS limit covering baselines, snapshots and clones. The watchdog also closes access when the pool runs low on space. Counters and the exact meaning of each limit are described in [STORAGE-ACCOUNTING.md](docs/STORAGE-ACCOUNTING.md).
+
+This is a working physical implementation for a dedicated local installation. It supports approved Unix-socket sources and TCP sources through a TLS broker with pinned addresses, one application database, and a conservative list of PostgreSQL features. TCP setup is described in [SOURCE-TLS.md](docs/SOURCE-TLS.md). Sanitized ingestion, classifier training and the RFC's production acceptance gates are not complete. The exact state and limitations are tracked in [IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
+
+## Persistent local installation
 
 ```sh
 python3 scripts/dev.py up
@@ -18,23 +22,19 @@ python3 scripts/dev.py status
 python3 scripts/dev.py cli baselines
 ```
 
-Обновить работающий стенд с сохранением данных: `python3 scripts/dev.py upgrade`.
-Сквозная проверка обновления: `python3 scripts/dev_upgrade_check.py`.
-Создать новый пример после истечения TTL: `python3 scripts/dev.py workspace`.
+Upgrade a running installation while keeping its data: `python3 scripts/dev.py upgrade`.
+End-to-end upgrade check: `python3 scripts/dev_upgrade_check.py`.
+Create a new example workspace after the TTL expires: `python3 scripts/dev.py workspace`.
 
-Стенд создаёт собственные source/management PostgreSQL 18, ZFS pool и пример workspace на один час. API доступен на `http://127.0.0.1:18870`. API и worker работают под разными непривилегированными пользователями Linux. Команда `python3 scripts/dev.py down` удаляет ресурсы этого стенда. Настройка подключения, TLS и ограничения описаны в [LOCAL-SERVICE.md](docs/LOCAL-SERVICE.md).
+The installation creates its own source and management PostgreSQL 18 databases, a ZFS pool and an example workspace with a one-hour TTL. The API listens on `http://127.0.0.1:18870`. The API and worker run as separate unprivileged Linux users. `python3 scripts/dev.py down` removes this installation's resources. Connection setup, TLS and limitations are described in [LOCAL-SERVICE.md](docs/LOCAL-SERVICE.md).
 
-Для программного доступа доступны [Python и TypeScript SDK](sdk/README.md).
+For programmatic access, use the [Python and TypeScript SDKs](sdk/README.md).
 
-Замер создания нескольких баз через API и проверки изоляции SQL:
+To measure concurrent workspace creation through the API and check SQL isolation:
 `python3 scripts/benchmark.py --baseline BASELINE_UUID --workspaces 2 --rounds 2`.
-Методика и пределы измерений описаны в [BENCHMARK.md](docs/BENCHMARK.md).
+The method and its limits are described in [BENCHMARK.md](docs/BENCHMARK.md).
 
-Для приватного sanitized-кандидата добавлен `pgws-logical`: обнаружение схемы, согласованная начальная загрузка и поток изменений с преобразованием данных. Проверены повтор после потерянного ACK и остановка при неизвестном поле. Публичная выдача sanitized-workspace пока закрыта; профиль и команды описаны в [LOGICAL-ADAPTER.md](docs/LOGICAL-ADAPTER.md).
-
-Для будущего локального классификатора добавлены `pgws-features` и `pgws-classify`. Первый экспортирует признаки, второй проверяет подпись файла весов и вычисляет оценки классов. Обученных весов пока нет; все результаты требуют ручной проверки. Формат и ограничения описаны в [CLASSIFIER-RUNTIME.md](docs/CLASSIFIER-RUNTIME.md).
-
-## Проверка
+## Verification
 
 ```sh
 make build
@@ -46,11 +46,11 @@ make zfs-lab
 make host-lab
 ```
 
-`make integration` требует `initdb`, `pg_ctl` и `postgres` одной установки в PATH. Скрипт создаёт приватный временный кластер без TCP, запускает HTTP/SQL-тесты с race detector, останавливает кластер и удаляет его. Локально этот прогон проверен на PostgreSQL 14.20 и 18.6 (Homebrew).
+`make integration` needs `initdb`, `pg_ctl` and `postgres` from a single installation on PATH. The script creates a private temporary cluster without TCP, runs the HTTP/SQL tests with the race detector, then stops and removes the cluster. It has been run locally against PostgreSQL 14.20 and 18.6 (Homebrew).
 
-`make physical-lab` требует Docker. Он запускает management-тесты и физическое восстановление в отдельных контейнерах PostgreSQL 18 с закреплённым digest, отключённой сетью и временным хранилищем. Существующие базы и контейнеры не используются. Подробности и команды `pgws-physical` — в [PHYSICAL-LAB.md](docs/PHYSICAL-LAB.md).
+`make physical-lab` needs Docker. It runs the management tests and physical recovery in separate PostgreSQL 18 containers with a pinned digest, networking disabled and temporary storage. Existing databases and containers are never used. Details and the `pgws-physical` commands are in [PHYSICAL-LAB.md](docs/PHYSICAL-LAB.md).
 
-Статические проверки исходных контрактов:
+Static checks for the source contracts:
 
 ```sh
 python3 -m pip install -r contracts/requirements.txt
@@ -58,11 +58,11 @@ python3 contracts/validate_contracts.py
 python3 contracts/classifier/validate.py
 ```
 
-`make zfs-lab` и `make host-lab` используют выделенную Lima VM `pgws-lab` с Linux, OpenZFS и Docker. Каждый прогон создаёт отдельный файловый ZFS pool и временные базы, затем удаляет свои ресурсы. `host-lab` проверяет также отдельные процессы сервиса. Тесты не используют пользовательские базы или физические диски.
+`make zfs-lab` and `make host-lab` use a dedicated Lima VM, `pgws-lab`, with Linux, OpenZFS and Docker. Each run creates its own file-backed ZFS pool and temporary databases, then removes them. `host-lab` also exercises the service as separate processes. The tests never use user databases or physical disks.
 
-## Запуск API
+## Running the API
 
-Нужна отдельная пустая management database. Миграции создают схему `pgws_control` и роль `pgws_runtime`; migration user должен иметь права создания роли. Обновлённые SQL-файлы нельзя подменять после применения: runner проверяет SHA-256 миграций.
+You need a separate, empty management database. Migrations create the `pgws_control` schema and the `pgws_runtime` role, so the migration user needs permission to create roles. Applied SQL files cannot be changed afterwards: the runner verifies each migration's SHA-256.
 
 ```sh
 export PGWS_DATABASE_URL='postgres://USER:PASSWORD@127.0.0.1:5432/pgws?sslmode=disable'
@@ -73,7 +73,7 @@ umask 077
 ./bin/pgwsd bootstrap > .local/bootstrap.json
 ```
 
-Bootstrap выполняется один раз. Он создаёт tenant, project, authority epoch и административный токен на 24 часа. Файл содержит секрет; он исключён из Git. Повторный bootstrap не меняет существующую или восстановленную authority.
+Bootstrap runs once. It creates a tenant, a project, an authority epoch and an administrator token valid for 24 hours. The output file contains a secret and is excluded from Git. Running bootstrap again does not change an existing or restored authority.
 
 ```sh
 export PGWS_AUTHORITY_EPOCH=$(python3 -c 'import json; print(json.load(open(".local/bootstrap.json"))["authority_epoch"])')
@@ -82,20 +82,20 @@ export PGWS_TOKEN=$(python3 -c 'import json; print(json.load(open(".local/bootst
 ./bin/pgwsd serve
 ```
 
-API слушает `127.0.0.1:8080`. `/healthz` проверяет процесс, `/readyz` проверяет management authority и сообщает, настроен ли physical backend. Это проверка конфигурации API, а не готовности конкретного workspace. Для внешнего доступа нужен TLS reverse proxy. Проект пока рассчитан на локальную разработку; production login-роли и OIDC ещё не реализованы. Команды выпуска, просмотра, ротации и отзыва API-токенов описаны в [TOKEN-ADMIN.md](docs/TOKEN-ADMIN.md).
+The API listens on `127.0.0.1:8080`. `/healthz` checks the process; `/readyz` checks the management authority and reports whether a physical backend is configured. This checks the API configuration, not the readiness of any particular workspace. External access requires a TLS reverse proxy. The project currently targets local development; production login roles and OIDC are not implemented yet. Commands for issuing, listing, rotating and revoking API tokens are described in [TOKEN-ADMIN.md](docs/TOKEN-ADMIN.md).
 
-В другом терминале с теми же переменными:
+In another terminal, with the same variables:
 
 ```sh
 ./bin/pgws baselines
 ./bin/pgwsd worker
 ```
 
-Для API и worker используйте отдельные login-роли без `SUPERUSER`, `BYPASSRLS` и владения таблицами, с членством в `pgws_runtime` и `pgws_worker` соответственно. Миграции и bootstrap выполняет только migration owner. HTTP-обработчики понижают роль до `pgws_runtime` внутри каждой транзакции. Локальный стенд создаёт раздельные роли автоматически.
+Run the API and worker under separate login roles without `SUPERUSER`, `BYPASSRLS` or table ownership, as members of `pgws_runtime` and `pgws_worker` respectively. Only the migration owner runs migrations and bootstrap. HTTP handlers drop to `pgws_runtime` inside every transaction. The local installation creates these separate roles automatically.
 
 ## CLI
 
-Все ответы выводятся как JSON. Ошибка API или завершившаяся неудачей операция дают ненулевой exit code. CLI не следует HTTP redirects с bearer token. Для изменяющих запросов нужен явный `--key`; используйте прежний ключ при сетевом повторе.
+All output is JSON. An API error or a failed operation produces a non-zero exit code. The CLI does not follow HTTP redirects with a bearer token. Mutating requests require an explicit `--key`; reuse the same key when retrying after a network failure.
 
 ```sh
 ./bin/pgws create --file request.json --key create-task-42
@@ -106,50 +106,44 @@ API слушает `127.0.0.1:8080`. `/healthz` проверяет процес�
 ./bin/pgws delete --id WORKSPACE_UUID --generation 1 --key delete-task-42
 ```
 
-`source`, `barrier` и `credentials` принимают JSON через `--file`. Форматы находятся в [OpenAPI](contracts/openapi.yaml). Завершение ожидания не удаляет workspace. Пример запроса не следует отправлять с придуманным snapshot: ingestion должна сначала создать и подтвердить его.
+`source`, `barrier` and `credentials` take JSON through `--file`. Request formats are defined in the [OpenAPI contract](contracts/openapi.yaml). A finished wait does not delete the workspace. Do not send an example request with a made-up snapshot: ingestion must create and confirm the snapshot first.
 
-## Код
+Administrator source recovery is available through `pgws source-get` and `pgws source-action`. See [source generations](docs/SOURCE-RESEED.md) for reseed admission, preserved workspace lineage and reconciliation restrictions.
 
-- `cmd/pgwsd`: миграции, bootstrap, HTTP-сервер и worker.
+Usage history is available through `pgws usage` and the `usage` method in both SDKs. The host keeps each batch until the management database acknowledges it, and redelivery does not create duplicates. Semantics and limitations are in [USAGE.md](docs/USAGE.md).
+
+## Management recovery
+
+The management database is restored with `pgwsd recovery-init/begin/finish` and `pgws-host recover`. Old grants are revoked, processes are stopped and data stays closed on disk. Real PostgreSQL 18 backup/restore, crashes during the procedure, and creating a new working database after access is re-approved have been tested. The procedure is described in [MANAGEMENT-RECOVERY.md](docs/MANAGEMENT-RECOVERY.md).
+
+## Private sanitized ingestion and classifier (not public)
+
+`pgws-logical` supports a private sanitized candidate: schema discovery, a consistent initial load and a change stream with data transformation. Replay after a lost ACK and stopping on an unknown field have been tested. Public sanitized workspaces remain disabled; the supported profile and commands are in [LOGICAL-ADAPTER.md](docs/LOGICAL-ADAPTER.md).
+
+The private loader runs inside the baseline container. A separate watchdog checks source WAL, stops the container and removes only a confirmed slot. A frozen initial load, CDC and ZFS snapshot recovery have been tested. Details and remaining limitations are in [LOGICAL-SUPERVISION.md](docs/LOGICAL-SUPERVISION.md). The adapter also supports [committed marker barriers](docs/LOGICAL-BARRIERS.md).
+
+The administrator commands `pgwsd policy-create/show/approve/sign/revoke` store a verifiable policy binding and sign the decision, but do not open public sanitized databases. The private logical loader supports automatic approval renewal: `pgwsd policy-renew` delivers signatures to a separate `pgws-logical-watchdog relay`. Revoking a policy stops renewal and stops CDC within the lifetime of the last permit. The workflow is described in [PRIVACY-ADMIN.md](docs/PRIVACY-ADMIN.md).
+
+For a future local classifier, `pgws-features` exports features and `pgws-classify` verifies a signed weights file and computes class scores. There are no trained weights yet, and every result requires manual review. The format and limitations are described in [CLASSIFIER-RUNTIME.md](docs/CLASSIFIER-RUNTIME.md). Related workflows: [bounded PostgreSQL discovery](docs/BOUNDED-DISCOVERY.md), [offline training](ml/column-classifier/README.md) and [local model scoring](docs/CLASSIFIER-RUNTIME.md).
+
+None of these tools enable the public sanitized connector.
+
+## Code layout
+
+- `cmd/pgwsd`: migrations, bootstrap, HTTP server and worker.
 - `cmd/pgws`: CLI.
-- `cmd/pgws-host`, `cmd/pgws-guard`, `cmd/pgws-watchdog`: привилегированный host, TLS ingress с отдельным процессом и независимый контроль ресурсов.
-- `cmd/pgws-physical`: локальные административные команды inspect/barrier/seed/recover/stop.
-- `cmd/pgws-logical`: приватные административные команды discover/seed/run/barrier/status; `internal/privacy` и `internal/logical` — компилятор политик, экспортированный снимок и транзакционный CDC.
-- `internal/physical`: discovery, подтверждённый backup, отключённое восстановление и доказательства replay/promotion.
-- `internal/storage/zfs`: создание baseline/snapshot/clone, holds, проверка ownership/GUID и нерекурсивное удаление клона.
-- `internal/control`: транзакционное принятие запросов, права, lifecycle, очередь и fencing попыток.
-- `internal/migrations`: исходная SQL-схема RFC и миграция прав/API.
-- `internal/lease`: подписи Ed25519, проверка serving lease, монотонные deadlines и файловый журнал fencing с fsync и блокировкой процесса. Её используют worker и отдельный ingress guard.
-- `contracts`: неизменённые контракты RFC, включая спецификацию классификатора.
+- `cmd/pgws-host`, `cmd/pgws-guard`, `cmd/pgws-watchdog`: the privileged host, the TLS ingress guard running as a separate process, and independent resource control.
+- `cmd/pgws-physical`: local administrator commands inspect/barrier/seed/recover/stop.
+- `cmd/pgws-logical`: private administrator commands discover/seed/run/barrier/status. `internal/privacy` and `internal/logical` contain the policy compiler, exported snapshot and transactional CDC.
+- `internal/physical`: discovery, verified backup, disconnected recovery and replay/promotion evidence.
+- `internal/storage/zfs`: baseline/snapshot/clone creation, holds, ownership/GUID checks and non-recursive clone deletion.
+- `internal/control`: transactional request admission, permissions, lifecycle, queueing and attempt fencing.
+- `internal/migrations`: the RFC's initial SQL schema and the permissions/API migrations.
+- `internal/lease`: Ed25519 signatures, serving-lease checks, monotonic deadlines and a file-based fencing journal with fsync and process locking. Used by the worker and the separate ingress guard.
+- `contracts`: the RFC contracts, including the classifier specification.
 
-Дальнейшая реализация всех WP-01–WP-12, ограничения текущего кода и следующие acceptance tests перечислены в [IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
+Planned work for WP-01 through WP-12, current limitations and the next acceptance tests are listed in [IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
 
-Administrator source recovery is available through `pgws source-get` and
-`pgws source-action`. See [source generations](docs/SOURCE-RESEED.md) for reseed
-admission, preserved workspace lineage and reconciliation restrictions.
+## License
 
-Private discovery and classifier workflows are documented in
-[bounded PostgreSQL discovery](docs/BOUNDED-DISCOVERY.md),
-[offline training](ml/column-classifier/README.md), and
-[local model scoring](docs/CLASSIFIER-RUNTIME.md).
-The private logical adapter also supports [committed marker barriers](docs/LOGICAL-BARRIERS.md).
-These tools do not enable the public sanitized connector.
-
-Приватный загрузчик теперь работает внутри контейнера базовой копии. Отдельный watchdog проверяет WAL источника, останавливает контейнер и удаляет только подтверждённый слот. Проверены замороженная начальная загрузка, CDC и восстановление снимков ZFS. Подробности и оставшиеся ограничения: [LOGICAL-SUPERVISION.md](docs/LOGICAL-SUPERVISION.md).
-
-Добавлены административные команды `pgwsd policy-create/show/approve/sign/revoke`. Они сохраняют проверяемую привязку политики и подписывают решение, но пока не открывают публичные sanitized-базы. Порядок работы: [PRIVACY-ADMIN.md](docs/PRIVACY-ADMIN.md).
-
-История измерений доступна через `pgws usage` и метод `usage` обоих SDK.
-Host сохраняет пакет до подтверждения управляющей базы; повторная доставка
-не создаёт дубликаты. Семантика и ограничения: [USAGE.md](docs/USAGE.md).
-
-Восстановление управляющей базы выполняется через `pgwsd recovery-init/begin/finish`
-и `pgws-host recover`. Старые разрешения отзываются, процессы останавливаются,
-данные остаются закрытыми на диске. Проверены настоящий backup/restore PostgreSQL
-18, аварийные остановки процедуры и создание новой рабочей БД после повторного
-одобрения доступа. Порядок действий: [MANAGEMENT-RECOVERY.md](docs/MANAGEMENT-RECOVERY.md).
-
-Приватный логический загрузчик поддерживает автоматическое продление одобрения:
-`pgwsd policy-renew` доставляет подписи отдельному `pgws-logical-watchdog relay`.
-Отзыв политики прекращает продление и останавливает CDC в пределах срока
-последнего разрешения. Настройка: [PRIVACY-ADMIN.md](docs/PRIVACY-ADMIN.md).
+Apache-2.0. See [LICENSE](LICENSE).
