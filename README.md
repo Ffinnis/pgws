@@ -1,56 +1,292 @@
-# PGWS
+<h1 align="center">PGWS</h1>
 
-PostgreSQL workspaces for AI agents. PGWS keeps a PostgreSQL baseline up to date through replication and gives each agent its own independent, writable copy-on-write workspace.
+<p align="center">
+  <strong>Disposable, writable PostgreSQL workspaces for AI agents</strong><br>
+  A continuously replicated baseline, copy-on-write clones in seconds, and one isolated database per agent task.
+</p>
 
-This is the initial implementation of [RFC-0001 revision 0.3](docs/RFC-0001.md), written in Go 1.25 with PostgreSQL and an HTTP/JSON API. The repository includes a copy of the RFC and its contracts.
+<p align="center">
+  <a href="https://github.com/Ffinnis/pgws/actions/workflows/test.yml"><img src="https://github.com/Ffinnis/pgws/actions/workflows/test.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License: Apache-2.0"></a>
+  <img src="https://img.shields.io/badge/Go-1.25-00ADD8.svg?logo=go&logoColor=white" alt="Go 1.25">
+  <img src="https://img.shields.io/badge/PostgreSQL-18-336791.svg?logo=postgresql&logoColor=white" alt="PostgreSQL 18">
+  <img src="https://img.shields.io/badge/status-experimental-orange.svg" alt="Status: experimental">
+</p>
 
-## Status
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#usage">Usage</a> ·
+  <a href="#documentation">Documentation</a> ·
+  <a href="docs/RFC-0001.md">RFC</a>
+</p>
 
-The physical PostgreSQL 18 flow works end to end: source registration, a streaming baseline, ZFS clone creation through the API, `latest`, signed barriers and `at_least`, TLS connections with per-workspace credentials, pause/resume, reset, TTL extension and deletion. Imported source logins are disabled. Passwords kept for response replay are stored encrypted in the management database.
+> [!WARNING]
+> PGWS is an early implementation of [RFC-0001](docs/RFC-0001.md). The physical PostgreSQL 18 path works end to end on a single Linux host, but it is **not production-ready**: deployment networking, power-loss qualification, the full security matrix and the RFC's release gates are still open. Workspaces contain **real copies of the source data**; the sanitized (masked) mode is deliberately disabled. See [project status](#project-status).
 
-Real PostgreSQL 18.6, OpenZFS and Docker have been tested in a Linux VM. The end-to-end test runs the API, worker, host, ingress guard and CLI as separate processes. An independent guard closes existing SQL connections when a serving lease, workspace or credential expires. A separate watchdog monitors source WAL and stops expired runtimes.
+---
 
-Each project gets a shared ZFS limit covering baselines, snapshots and clones. The watchdog also closes access when the pool runs low on space. Counters and the exact meaning of each limit are described in [STORAGE-ACCOUNTING.md](docs/STORAGE-ACCOUNTING.md).
+## Why PGWS?
 
-This is a working physical implementation for a dedicated local installation. It supports approved Unix-socket sources and TCP sources through a TLS broker with pinned addresses, one application database, and a conservative list of PostgreSQL features. TCP setup is described in [SOURCE-TLS.md](docs/SOURCE-TLS.md). Sanitized ingestion, classifier training and the RFC's production acceptance gates are not complete. The exact state and limitations are tracked in [IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
+AI agents are most useful when they can work against a real database: run migrations, try queries, reproduce bugs and write data. Pointing them at production is dangerous, and shared staging databases drift and collide.
 
-## Persistent local installation
+PGWS gives each agent task its own PostgreSQL database:
+
+- **Real data, current state.** Workspaces are cloned from a baseline that streams from your source database, so they reflect recent data, and you can require that a specific committed write is included.
+- **Fast and cheap.** Clones are ZFS copy-on-write snapshots. In a [1 GiB test](docs/ONE-GIB-RESULTS.md), three concurrent clones were ready in 2.2–5.3 s and used about 2.8 MiB of extra space before writes.
+- **Isolated and disposable.** Each workspace is a separate PostgreSQL instance with its own TLS credentials and TTL. Agents get an owner role for ordinary DDL and writes, and the source never sees any of it. Pause, reset or delete it when the task is done.
+
+## Features
+
+- **Streaming baselines** — physical replication from PostgreSQL 18 over a Unix socket or a pinned-address TLS broker, with verified base backups and a persistent replication slot.
+- **Freshness control** — request the `latest` snapshot, a specific `snapshot`, or `at_least` a signed source barrier, so a workspace is guaranteed to contain a write you just committed.
+- **Per-workspace access** — generated owner/reader roles, SCRAM authentication and TLS `verify-full`. Imported source logins are disabled, and passwords are stored encrypted.
+- **Full lifecycle** — create, pause, resume, reset to a fresh generation, extend TTL and delete, all through an idempotent HTTP API.
+- **Independent safety processes** — a separate ingress guard closes SQL sessions when a lease, workspace or credential expires; a watchdog stops expired runtimes and protects source WAL and pool space.
+- **Crash safety** — idempotency keys, generation checks, host fences and durable operations. Creation, reset and reseed are tested against `SIGKILL` at each stage.
+- **Quotas** — per-project ZFS limits covering baselines, snapshots and clones, plus memory admission and a pool free-space floor.
+- **Clients** — a JSON CLI, dependency-free Python and TypeScript SDKs, and an [OpenAPI 3.1 contract](contracts/openapi.yaml).
+
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph Source
+        SRC[(PostgreSQL 18<br>source)]
+    end
+
+    subgraph Host["PGWS host (Linux + OpenZFS)"]
+        BASE[(Baseline<br>streaming standby)]
+        SNAP[/ZFS snapshots/]
+        W1[(Workspace A)]
+        W2[(Workspace B)]
+        GUARD[Ingress guard<br>TLS · SCRAM · leases]
+        WD[Watchdog<br>TTL · WAL · pool]
+    end
+
+    subgraph Control["Control plane"]
+        API[pgwsd API] --- MGMT[(Management DB)]
+        WORKER[pgwsd worker] --- MGMT
+    end
+
+    SRC -- physical replication --> BASE
+    BASE -- capture --> SNAP
+    SNAP -- copy-on-write clone --> W1 & W2
+    WORKER -- host RPC --> BASE
+    W1 & W2 --- GUARD
+    AGENT([AI agent]) -- CLI / SDK --> API
+    AGENT -- SQL over TLS --> GUARD
+```
+
+1. **Register a source.** PGWS inspects the source, takes a verified base backup and keeps a baseline replaying WAL continuously.
+2. **Capture a snapshot.** On request, the host captures a ZFS snapshot at a known replay position, optionally waiting for a signed barrier.
+3. **Create a workspace.** The snapshot is cloned, recovered and promoted in a sandboxed runtime with no network, no source credentials and no management access. Access is hardened and a real SQL probe must pass before the workspace is reported ready.
+4. **Connect.** The agent requests short-lived credentials and connects through the ingress guard with TLS `verify-full`.
+5. **Clean up.** Pause, reset or delete the workspace, or let its TTL expire. Expiry is enforced on the host even if the control plane is unavailable.
+
+The full design, including failure handling and security model, is in [RFC-0001](docs/RFC-0001.md).
+
+## Quick start
+
+The quickest way to try PGWS is the disposable local installation. It creates its own source database with a `notes` table, a management database, an 8 GiB file-backed ZFS pool, a streaming baseline and an example workspace with a one-hour TTL.
+
+**Requirements**
+
+- Go 1.25+ and Python 3.10+
+- A Linux environment with Docker, OpenZFS, Python 3, OpenSSL and systemd, with this repository mounted at the same path. On macOS, use a [Lima](https://lima-vm.io) VM named `pgws-lab` (tested on Ubuntu 24.04 ARM64 with OpenZFS 2.2.2).
+- `psql` on the host, for connecting to workspaces
+
+The launcher does not install VM dependencies or format physical disks.
 
 ```sh
-python3 scripts/dev.py up
-python3 scripts/dev.py status
+git clone https://github.com/Ffinnis/pgws.git
+cd pgws
+
+python3 scripts/dev.py up          # build, start services, create the example workspace
+python3 scripts/dev.py status      # show baseline and workspace IDs
 python3 scripts/dev.py cli baselines
 ```
 
-Upgrade a running installation while keeping its data: `python3 scripts/dev.py upgrade`.
-End-to-end upgrade check: `python3 scripts/dev_upgrade_check.py`.
-Create a new example workspace after the TTL expires: `python3 scripts/dev.py workspace`.
+The API listens on `http://127.0.0.1:18870`. Client settings are written to `.local/dev-client.json` and the SQL CA certificate to `.local/dev-ca.crt` (both mode 0600 and ignored by Git).
 
-The installation creates its own source and management PostgreSQL 18 databases, a ZFS pool and an example workspace with a one-hour TTL. The API listens on `http://127.0.0.1:18870`. The API and worker run as separate unprivileged Linux users. `python3 scripts/dev.py down` removes this installation's resources. Connection setup, TLS and limitations are described in [LOCAL-SERVICE.md](docs/LOCAL-SERVICE.md).
+Get credentials for the example workspace and connect:
 
-For programmatic access, use the [Python and TypeScript SDKs](sdk/README.md).
+```sh
+echo '{"expected_generation":1,"role":"owner","ttl_seconds":900}' > credentials.json
+python3 scripts/dev.py cli credentials --id WORKSPACE_UUID --file credentials.json --key my-credential
+```
 
-To measure concurrent workspace creation through the API and check SQL isolation:
-`python3 scripts/benchmark.py --baseline BASELINE_UUID --workspaces 2 --rounds 2`.
-The method and its limits are described in [BENCHMARK.md](docs/BENCHMARK.md).
+Use the returned `endpoint`, `username` and `password` with `sslmode=verify-full` and `sslrootcert` set to the absolute path of `.local/dev-ca.crt`.
 
-## Verification
+When you are done:
+
+```sh
+python3 scripts/dev.py down        # removes this installation's pool, containers and state
+```
+
+See [LOCAL-SERVICE.md](docs/LOCAL-SERVICE.md) for upgrades, service logs and details.
+
+## Usage
+
+### Python
+
+```python
+import json
+from pathlib import Path
+from pgws import Client  # PYTHONPATH=sdk/python
+
+config = json.loads(Path(".local/dev-client.json").read_text())
+client = Client(config["url"], config["project_id"], config["token"])
+
+baseline = client.baselines()["items"][0]["id"]
+created = client.create(baseline, "task-42", key="create-task-42", ttl=3600)
+client.wait(created["operation"]["id"])
+
+workspace = client.get(created["workspace"]["id"])
+credential = client.credentials(workspace["id"], workspace["generation"], key="credential-task-42")
+# Pass credential["endpoint"], ["username"] and ["password"] to your PostgreSQL driver. Never log the password.
+
+client.wait(client.delete(workspace["id"], workspace["generation"], key="delete-task-42")["id"])
+```
+
+### TypeScript
+
+```typescript
+import { Client } from "./sdk/typescript/index.mjs";
+
+const client = new Client({ url, projectId, token });
+const created = await client.create({
+  baseline_id: baselineId,
+  task_id: "task-42",
+  freshness: { mode: "latest" },
+  resource_profile: "small",
+  ttl_seconds: 3600,
+}, "create-task-42");
+await client.wait(created.operation.id);
+const workspace = await client.get(created.workspace.id);
+```
+
+### Read-your-writes freshness
+
+To guarantee a workspace contains a write your application just committed, create a barrier after the commit and pass it when creating the workspace:
+
+```python
+barrier = client.barrier(source_id, key="barrier-task-42")
+created = client.create(baseline, "task-42", key="create-task-42", ttl=3600,
+                        freshness={"mode": "at_least", "barrier_token": barrier["barrier_token"]})
+```
+
+### CLI
+
+All output is JSON, and failures exit non-zero. Mutating commands require an explicit `--key`; reuse the same key when retrying after a network error.
+
+```sh
+pgws create    --file request.json --key create-task-42
+pgws get       --id WORKSPACE_UUID
+pgws action    --id WORKSPACE_UUID --file action.json --key pause-task-42
+pgws wait      --id OPERATION_UUID --timeout 2m
+pgws delete    --id WORKSPACE_UUID --generation 1 --key delete-task-42
+pgws usage
+```
+
+Request bodies are defined in the [OpenAPI contract](contracts/openapi.yaml). More SDK details are in [sdk/README.md](sdk/README.md).
+
+## Running the service manually
+
+<details>
+<summary>Migrate, bootstrap and start the API and worker against your own management database</summary>
+
+You need a separate, empty management database. Migrations create the `pgws_control` schema and the `pgws_runtime` role, so the migration user needs permission to create roles. Applied migrations are checksum-verified and cannot be modified.
 
 ```sh
 make build
-make test
-make sdk-test
-make integration
-make physical-lab
-make zfs-lab
-make host-lab
+
+export PGWS_DATABASE_URL='postgres://USER:PASSWORD@127.0.0.1:5432/pgws?sslmode=disable'
+./bin/pgwsd migrate
+
+mkdir -p .local && chmod 700 .local
+umask 077
+./bin/pgwsd bootstrap > .local/bootstrap.json
 ```
 
-`make integration` needs `initdb`, `pg_ctl` and `postgres` from a single installation on PATH. The script creates a private temporary cluster without TCP, runs the HTTP/SQL tests with the race detector, then stops and removes the cluster. It has been run locally against PostgreSQL 14.20 and 18.6 (Homebrew).
+Bootstrap runs once. It creates a tenant, a project, an authority epoch and an administrator token valid for 24 hours. The output contains a secret.
 
-`make physical-lab` needs Docker. It runs the management tests and physical recovery in separate PostgreSQL 18 containers with a pinned digest, networking disabled and temporary storage. Existing databases and containers are never used. Details and the `pgws-physical` commands are in [PHYSICAL-LAB.md](docs/PHYSICAL-LAB.md).
+```sh
+export PGWS_AUTHORITY_EPOCH=$(python3 -c 'import json; print(json.load(open(".local/bootstrap.json"))["authority_epoch"])')
+export PGWS_PROJECT_ID=$(python3 -c 'import json; print(json.load(open(".local/bootstrap.json"))["project_id"])')
+export PGWS_TOKEN=$(python3 -c 'import json; print(json.load(open(".local/bootstrap.json"))["token"])')
 
-Static checks for the source contracts:
+./bin/pgwsd serve     # API on 127.0.0.1:8080
+./bin/pgwsd worker    # in a second terminal
+```
+
+`/healthz` checks the process; `/readyz` checks the management authority and whether a physical backend is configured. It does not report the readiness of any individual workspace.
+
+Run the API and worker under separate login roles without `SUPERUSER`, `BYPASSRLS` or table ownership, as members of `pgws_runtime` and `pgws_worker` respectively. The API is loopback-only; external access requires a TLS reverse proxy. Token administration is described in [TOKEN-ADMIN.md](docs/TOKEN-ADMIN.md).
+
+</details>
+
+## Project status
+
+PGWS follows the work packages in [RFC-0001](docs/RFC-0001.md). Detailed status and remaining acceptance work are tracked in [IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
+
+| Area | Status |
+| --- | --- |
+| Physical PG18 ingestion, streaming baselines, freshness barriers | ✅ Implemented and tested on real PostgreSQL 18.6 + OpenZFS |
+| Workspace lifecycle, credentials, ingress guard, watchdog | ✅ Implemented and tested with separate processes and `SIGKILL` faults |
+| Project quotas, usage history, management recovery | ✅ Implemented and tested |
+| Python / TypeScript SDKs, CLI | ✅ Implemented; not yet published as packages |
+| Production deployment, networking, power-loss and full security qualification | 🚧 Open |
+| 1 TB / 14-workspace benchmark | 🚧 Open (a [1 GiB run](docs/ONE-GIB-RESULTS.md) has passed) |
+| Sanitized (masked) workspaces | 🔒 Private candidate only; public mode disabled |
+| Column classifier | 🔒 Runtime only; no trained weights, review-only |
+
+**Current limits:** one application database per source; a conservative set of supported PostgreSQL features (no unlogged tables, foreign servers, subscriptions, custom C functions, event triggers or unapproved extensions); single host; loopback API.
+
+## Documentation
+
+| Topic | Documents |
+| --- | --- |
+| Design | [RFC-0001](docs/RFC-0001.md) · [Implementation status](docs/IMPLEMENTATION.md) · [Validation](docs/VALIDATION.md) |
+| Running PGWS | [Local service](docs/LOCAL-SERVICE.md) · [Source TLS](docs/SOURCE-TLS.md) · [Token administration](docs/TOKEN-ADMIN.md) · [SDKs](sdk/README.md) |
+| Operations | [Source reseed](docs/SOURCE-RESEED.md) · [Management recovery](docs/MANAGEMENT-RECOVERY.md) · [Storage accounting](docs/STORAGE-ACCOUNTING.md) · [Usage](docs/USAGE.md) |
+| Safety | [Serving safety](docs/SERVING-SAFETY.md) · [Crash recovery](docs/CRASH-RECOVERY.md) |
+| Performance | [Benchmark method](docs/BENCHMARK.md) · [1 GiB results](docs/ONE-GIB-RESULTS.md) |
+| Sanitized ingestion (private) | [Logical adapter](docs/LOGICAL-ADAPTER.md) · [Barriers](docs/LOGICAL-BARRIERS.md) · [Ownership](docs/LOGICAL-OWNERSHIP.md) · [Supervision](docs/LOGICAL-SUPERVISION.md) · [Privacy administration](docs/PRIVACY-ADMIN.md) |
+| Classifier (review-only) | [Bounded discovery](docs/BOUNDED-DISCOVERY.md) · [Runtime](docs/CLASSIFIER-RUNTIME.md) · [Offline training](ml/column-classifier/README.md) |
+| Development | [Physical lab](docs/PHYSICAL-LAB.md) · [Maintainability review](docs/MAINTAINABILITY-REVIEW.md) |
+
+## Repository layout
+
+| Path | Contents |
+| --- | --- |
+| `cmd/pgwsd` | Migrations, bootstrap, HTTP API server and worker |
+| `cmd/pgws` | CLI |
+| `cmd/pgws-host`, `cmd/pgws-guard`, `cmd/pgws-watchdog` | Privileged host, TLS ingress guard and independent resource watchdog |
+| `cmd/pgws-physical`, `cmd/pgws-logical` | Administrator tools for physical and (private) logical ingestion |
+| `internal/control` | Request admission, authorization, lifecycle, queueing and fencing |
+| `internal/physical` | Source discovery, verified backup, recovery and promotion |
+| `internal/storage/zfs` | Baseline, snapshot and clone management |
+| `internal/lease` | Ed25519-signed serving leases and the fencing journal |
+| `internal/migrations` | Management schema migrations |
+| `contracts` | OpenAPI contract, management SQL contract and classifier specification |
+| `sdk` | Python and TypeScript clients |
+
+## Development
+
+```sh
+make build            # build all binaries into bin/
+make test             # go test -race ./...
+make sdk-test         # Python and TypeScript SDK tests
+make integration      # SQL/HTTP tests against a disposable local PostgreSQL cluster
+make physical-lab     # PostgreSQL 18 recovery tests in isolated Docker containers
+make zfs-lab          # ZFS tests in the pgws-lab VM
+make host-lab         # end-to-end tests with real PG18, ZFS and separate daemons
+```
+
+`make integration` needs `initdb`, `pg_ctl` and `postgres` from a single installation on `PATH`; it has passed on PostgreSQL 14.20 and 18.6. Every test suite creates and removes its own databases, containers and pools, and never touches existing databases or physical disks.
+
+Contract checks:
 
 ```sh
 python3 -m pip install -r contracts/requirements.txt
@@ -58,92 +294,14 @@ python3 contracts/validate_contracts.py
 python3 contracts/classifier/validate.py
 ```
 
-`make zfs-lab` and `make host-lab` use a dedicated Lima VM, `pgws-lab`, with Linux, OpenZFS and Docker. Each run creates its own file-backed ZFS pool and temporary databases, then removes them. `host-lab` also exercises the service as separate processes. The tests never use user databases or physical disks.
+## Contributing
 
-## Running the API
+Contributions are welcome. Before changing behavior, read [RFC-0001](docs/RFC-0001.md) and [IMPLEMENTATION.md](docs/IMPLEMENTATION.md), and keep the documented scope and evidence current. For Go changes, run `go test -race ./...` and `go vet ./...`; for SQL, authorization, API or lifecycle changes, also run `python3 scripts/integration.py`. Please describe in your pull request which suites you ran and on which platform.
 
-You need a separate, empty management database. Migrations create the `pgws_control` schema and the `pgws_runtime` role, so the migration user needs permission to create roles. Applied SQL files cannot be changed afterwards: the runner verifies each migration's SHA-256.
+## Security
 
-```sh
-export PGWS_DATABASE_URL='postgres://USER:PASSWORD@127.0.0.1:5432/pgws?sslmode=disable'
-./bin/pgwsd migrate
-mkdir -p .local
-chmod 700 .local
-umask 077
-./bin/pgwsd bootstrap > .local/bootstrap.json
-```
-
-Bootstrap runs once. It creates a tenant, a project, an authority epoch and an administrator token valid for 24 hours. The output file contains a secret and is excluded from Git. Running bootstrap again does not change an existing or restored authority.
-
-```sh
-export PGWS_AUTHORITY_EPOCH=$(python3 -c 'import json; print(json.load(open(".local/bootstrap.json"))["authority_epoch"])')
-export PGWS_PROJECT_ID=$(python3 -c 'import json; print(json.load(open(".local/bootstrap.json"))["project_id"])')
-export PGWS_TOKEN=$(python3 -c 'import json; print(json.load(open(".local/bootstrap.json"))["token"])')
-./bin/pgwsd serve
-```
-
-The API listens on `127.0.0.1:8080`. `/healthz` checks the process; `/readyz` checks the management authority and reports whether a physical backend is configured. This checks the API configuration, not the readiness of any particular workspace. External access requires a TLS reverse proxy. The project currently targets local development; production login roles and OIDC are not implemented yet. Commands for issuing, listing, rotating and revoking API tokens are described in [TOKEN-ADMIN.md](docs/TOKEN-ADMIN.md).
-
-In another terminal, with the same variables:
-
-```sh
-./bin/pgws baselines
-./bin/pgwsd worker
-```
-
-Run the API and worker under separate login roles without `SUPERUSER`, `BYPASSRLS` or table ownership, as members of `pgws_runtime` and `pgws_worker` respectively. Only the migration owner runs migrations and bootstrap. HTTP handlers drop to `pgws_runtime` inside every transaction. The local installation creates these separate roles automatically.
-
-## CLI
-
-All output is JSON. An API error or a failed operation produces a non-zero exit code. The CLI does not follow HTTP redirects with a bearer token. Mutating requests require an explicit `--key`; reuse the same key when retrying after a network failure.
-
-```sh
-./bin/pgws create --file request.json --key create-task-42
-./bin/pgws get --id WORKSPACE_UUID
-./bin/pgws action --id WORKSPACE_UUID --file action.json --key pause-task-42
-./bin/pgws operation --id OPERATION_UUID
-./bin/pgws wait --id OPERATION_UUID --timeout 2m
-./bin/pgws delete --id WORKSPACE_UUID --generation 1 --key delete-task-42
-```
-
-`source`, `barrier` and `credentials` take JSON through `--file`. Request formats are defined in the [OpenAPI contract](contracts/openapi.yaml). A finished wait does not delete the workspace. Do not send an example request with a made-up snapshot: ingestion must create and confirm the snapshot first.
-
-Administrator source recovery is available through `pgws source-get` and `pgws source-action`. See [source generations](docs/SOURCE-RESEED.md) for reseed admission, preserved workspace lineage and reconciliation restrictions.
-
-Usage history is available through `pgws usage` and the `usage` method in both SDKs. The host keeps each batch until the management database acknowledges it, and redelivery does not create duplicates. Semantics and limitations are in [USAGE.md](docs/USAGE.md).
-
-## Management recovery
-
-The management database is restored with `pgwsd recovery-init/begin/finish` and `pgws-host recover`. Old grants are revoked, processes are stopped and data stays closed on disk. Real PostgreSQL 18 backup/restore, crashes during the procedure, and creating a new working database after access is re-approved have been tested. The procedure is described in [MANAGEMENT-RECOVERY.md](docs/MANAGEMENT-RECOVERY.md).
-
-## Private sanitized ingestion and classifier (not public)
-
-`pgws-logical` supports a private sanitized candidate: schema discovery, a consistent initial load and a change stream with data transformation. Replay after a lost ACK and stopping on an unknown field have been tested. Public sanitized workspaces remain disabled; the supported profile and commands are in [LOGICAL-ADAPTER.md](docs/LOGICAL-ADAPTER.md).
-
-The private loader runs inside the baseline container. A separate watchdog checks source WAL, stops the container and removes only a confirmed slot. A frozen initial load, CDC and ZFS snapshot recovery have been tested. Details and remaining limitations are in [LOGICAL-SUPERVISION.md](docs/LOGICAL-SUPERVISION.md). The adapter also supports [committed marker barriers](docs/LOGICAL-BARRIERS.md).
-
-The administrator commands `pgwsd policy-create/show/approve/sign/revoke` store a verifiable policy binding and sign the decision, but do not open public sanitized databases. The private logical loader supports automatic approval renewal: `pgwsd policy-renew` delivers signatures to a separate `pgws-logical-watchdog relay`. Revoking a policy stops renewal and stops CDC within the lifetime of the last permit. The workflow is described in [PRIVACY-ADMIN.md](docs/PRIVACY-ADMIN.md).
-
-For a future local classifier, `pgws-features` exports features and `pgws-classify` verifies a signed weights file and computes class scores. There are no trained weights yet, and every result requires manual review. The format and limitations are described in [CLASSIFIER-RUNTIME.md](docs/CLASSIFIER-RUNTIME.md). Related workflows: [bounded PostgreSQL discovery](docs/BOUNDED-DISCOVERY.md), [offline training](ml/column-classifier/README.md) and [local model scoring](docs/CLASSIFIER-RUNTIME.md).
-
-None of these tools enable the public sanitized connector.
-
-## Code layout
-
-- `cmd/pgwsd`: migrations, bootstrap, HTTP server and worker.
-- `cmd/pgws`: CLI.
-- `cmd/pgws-host`, `cmd/pgws-guard`, `cmd/pgws-watchdog`: the privileged host, the TLS ingress guard running as a separate process, and independent resource control.
-- `cmd/pgws-physical`: local administrator commands inspect/barrier/seed/recover/stop.
-- `cmd/pgws-logical`: private administrator commands discover/seed/run/barrier/status. `internal/privacy` and `internal/logical` contain the policy compiler, exported snapshot and transactional CDC.
-- `internal/physical`: discovery, verified backup, disconnected recovery and replay/promotion evidence.
-- `internal/storage/zfs`: baseline/snapshot/clone creation, holds, ownership/GUID checks and non-recursive clone deletion.
-- `internal/control`: transactional request admission, permissions, lifecycle, queueing and attempt fencing.
-- `internal/migrations`: the RFC's initial SQL schema and the permissions/API migrations.
-- `internal/lease`: Ed25519 signatures, serving-lease checks, monotonic deadlines and a file-based fencing journal with fsync and process locking. Used by the worker and the separate ingress guard.
-- `contracts`: the RFC contracts, including the classifier specification.
-
-Planned work for WP-01 through WP-12, current limitations and the next acceptance tests are listed in [IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
+Workspaces hold real copies of source data, so treat them with the same care as the source. Please report suspected vulnerabilities privately to the maintainers rather than in a public issue.
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+PGWS is licensed under the [Apache License 2.0](LICENSE).
